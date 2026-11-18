@@ -1,0 +1,3172 @@
+<!DOCTYPE html>
+<html lang="sv" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>Bruce — Din hundvardag, samlad</title>
+  <meta name="description" content="Promenader med live GPS-spårning, hälsohistorik, snabb loggning och akutläge för hela hundteamet." />
+  <meta property="og:title" content="Bruce — The Dog Hub" />
+  <meta property="og:description" content="Din hundvardag, samlad. Promenader, hälsa och hela hundteamet." />
+  <meta property="og:type" content="website" />
+
+  <!-- iOS PWA & Safari Mobile Meta Tags -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Bruce" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#090D16" />
+
+  <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
+          colors: {
+            canvas: '#090D16',
+            card: '#131B2E',
+            cardBorder: '#1E293B',
+            limeAccent: '#A3E635',
+            amberAccent: '#FACC15',
+            orangeAccent: '#FB923C',
+            coralAccent: '#FF4D5E',
+          }
+        }
+      }
+    };
+  </script>
+
+  <!-- Leaflet.js CSS & JS (Key-free dark maps) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg-canvas: #090D16;
+      --bg-card: #131B2E;
+      --border-card: #1E293B;
+      --text-primary: #F8FAFC;
+      --lime: #A3E635;
+      --amber: #FACC15;
+      --orange: #FB923C;
+      --coral: #FF4D5E;
+    }
+
+    * {
+      -webkit-tap-highlight-color: transparent;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      background-color: #05080F;
+      color: #F8FAFC;
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      margin: 0;
+      padding: 0;
+      overscroll-behavior-y: contain;
+    }
+
+    .tabular-nums {
+      font-variant-numeric: tabular-nums;
+    }
+
+    .pt-safe {
+      padding-top: max(1rem, env(safe-area-inset-top));
+    }
+
+    .pb-safe {
+      padding-bottom: max(1rem, env(safe-area-inset-bottom));
+    }
+
+    .pb-nav-safe {
+      padding-bottom: calc(6.5rem + env(safe-area-inset-bottom));
+    }
+
+    /* Leaflet Dark Teal/Slate Hagaparken Styling */
+    .leaflet-container {
+      background: #0D1821 !important;
+      font-family: 'Plus Jakarta Sans', sans-serif !important;
+    }
+
+    .bruce-map-tiles {
+      filter: invert(100%) hue-rotate(185deg) brightness(88%) contrast(95%) saturate(80%);
+    }
+
+    .leaflet-control-attribution {
+      background: rgba(9, 13, 22, 0.7) !important;
+      color: #64748B !important;
+      font-size: 9px !important;
+      padding: 1px 5px !important;
+      border-top-left-radius: 6px;
+    }
+
+    .leaflet-control-attribution a {
+      color: #94A3B8 !important;
+    }
+
+    /* Pulsing Emergency Pin */
+    @keyframes emergency-pulse {
+      0% { transform: scale(0.95); opacity: 0.85; }
+      70% { transform: scale(2.1); opacity: 0; }
+      100% { transform: scale(2.1); opacity: 0; }
+    }
+
+    .emergency-ring {
+      animation: emergency-pulse 1.8s cubic-bezier(0.24, 0, 0.38, 1) infinite;
+    }
+
+    /* Live GPS Beacon Pulse */
+    @keyframes live-beacon {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.45; transform: scale(1.18); }
+    }
+
+    .live-dot-pulse {
+      animation: live-beacon 1.6s ease-in-out infinite;
+    }
+
+    /* Subtle View Transitions */
+    .screen-fade-in {
+      animation: screenIn 180ms cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes screenIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Custom Scrollbar for inner lists */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    /* Print / Veterinary PDF Export Styles */
+    #print-report-container {
+      display: none;
+    }
+
+    @media print {
+      @page {
+        size: A4;
+        margin: 16mm;
+      }
+      body {
+        background: #FFFFFF !important;
+        color: #0F172A !important;
+      }
+      #app-shell, #toast-container, #modal-root {
+        display: none !important;
+      }
+      #print-report-container {
+        display: block !important;
+        background: #FFFFFF !important;
+        color: #0F172A !important;
+        font-family: 'Plus Jakarta Sans', sans-serif !important;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .emergency-ring, .live-dot-pulse, .screen-fade-in {
+        animation: none !important;
+      }
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-[#05080F] text-[#F8FAFC] antialiased selection:bg-[#A3E635] selection:text-[#090D16]">
+
+  <!-- Main Mobile Frame -->
+  <div id="app-shell" class="max-w-md mx-auto min-h-screen bg-[#090D16] relative flex flex-col shadow-2xl shadow-black/80 sm:border-x sm:border-[#1E293B]/60 overflow-x-hidden">
+
+    <!-- ==================== 01 · WELCOME ==================== -->
+    <section id="view-welcome" class="hidden flex-1 flex-col justify-between px-5 pt-safe pb-safe min-h-screen screen-fade-in">
+      <div>
+        <!-- Header -->
+        <header class="flex items-center justify-between py-3">
+          <div class="flex items-center gap-2.5">
+            <svg class="w-7 h-7 text-[#A3E635]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="11" cy="4" r="2"/><circle cx="18" cy="8" r="2"/><circle cx="20" cy="16" r="2"/>
+              <path d="M9 10a5 5 0 0 1 5 5v3.5a3.5 3.5 0 0 1-6.84 1.045Q6.52 17.48 4.46 16.84A3.5 3.5 0 0 1 5.5 10Z"/>
+            </svg>
+            <span class="text-2xl font-extrabold tracking-tight text-[#F8FAFC]">bruce</span>
+          </div>
+          <button type="button" onclick="app.finishWelcomeToHub()" class="min-h-[40px] px-4 py-2 rounded-full bg-[#222B17] border border-[#36471E] text-[#A3E635] text-xs font-bold tracking-wider uppercase hover:bg-[#2C381D] active:scale-95 transition">
+            KOM IGÅNG
+          </button>
+        </header>
+
+        <!-- Hero Copy -->
+        <div class="mt-6">
+          <p class="text-[11px] font-bold tracking-[0.12em] uppercase text-[#94A3B8]">DIN HUNDVARDAG, SAMLAD</p>
+          <h1 class="mt-2.5 text-[40px] leading-[1.06] font-extrabold tracking-tight text-[#F8FAFC]">
+            Välkommen<br />
+            <span class="text-[#A3E635]">till bruce.</span>
+          </h1>
+          <p class="mt-4 text-[15px] leading-relaxed text-[#94A3B8]">
+            Promenader, hälsa och hela hundteamet.<br />
+            Här börjar en enklare vardag tillsammans.
+          </p>
+        </div>
+
+        <!-- Feature Chips Row -->
+        <div class="mt-6 flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+          <button type="button" onclick="app.finishWelcomeToHub()" class="shrink-0 flex items-center gap-2 px-3.5 py-2.5 rounded-full bg-[#131B2E] border border-[#1E293B] text-xs font-semibold text-[#F8FAFC] hover:border-[#A3E635]/50 transition">
+            <i data-lucide="route" class="w-3.5 h-3.5 text-[#A3E635]"></i>
+            <span>Promenader</span>
+          </button>
+          <button type="button" onclick="app.openWelcomeTarget('profile')" class="shrink-0 flex items-center gap-2 px-3.5 py-2.5 rounded-full bg-[#131B2E] border border-[#1E293B] text-xs font-semibold text-[#F8FAFC] hover:border-[#A3E635]/50 transition">
+            <i data-lucide="heart" class="w-3.5 h-3.5 text-[#A3E635]"></i>
+            <span>Hälsa</span>
+          </button>
+          <button type="button" onclick="app.openAddAdmin(true)" class="shrink-0 flex items-center gap-2 px-3.5 py-2.5 rounded-full bg-[#131B2E] border border-[#1E293B] text-xs font-semibold text-[#F8FAFC] hover:border-[#A3E635]/50 transition">
+            <i data-lucide="users" class="w-3.5 h-3.5 text-[#A3E635]"></i>
+            <span>Ditt team</span>
+          </button>
+        </div>
+
+        <!-- Primary Action Card: Add a Dog -->
+        <button type="button" onclick="app.openAddDog(true)" class="w-full text-left mt-6 p-6 rounded-[26px] bg-[#A3E635] text-[#090D16] shadow-lg shadow-[#A3E635]/10 active:scale-[0.985] transition-transform group">
+          <div class="flex items-center justify-between">
+            <svg class="w-7 h-7 text-[#090D16]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="11" cy="4" r="2"/><circle cx="18" cy="8" r="2"/><circle cx="20" cy="16" r="2"/>
+              <path d="M9 10a5 5 0 0 1 5 5v3.5a3.5 3.5 0 0 1-6.84 1.045Q6.52 17.48 4.46 16.84A3.5 3.5 0 0 1 5.5 10Z"/>
+            </svg>
+            <i data-lucide="arrow-right" class="w-6 h-6 text-[#090D16] group-hover:translate-x-0.5 transition-transform"></i>
+          </div>
+          <h2 class="mt-4 text-[22px] font-extrabold tracking-tight text-[#090D16]">Lägg till en hund</h2>
+          <p class="mt-1.5 text-[14px] leading-snug font-medium text-[#090D16]/85">
+            Skapa en profil och samla promenader, hälsa och små framsteg på ett ställe.
+          </p>
+        </button>
+
+        <!-- Secondary Action Card: Add Admin -->
+        <button type="button" onclick="app.openAddAdmin(true)" class="w-full text-left mt-4 p-6 rounded-[26px] bg-[#131B2E] border border-[#1E293B] text-[#F8FAFC] hover:border-[#334155] active:scale-[0.985] transition-transform group">
+          <div class="flex items-center justify-between">
+            <i data-lucide="users" class="w-7 h-7 text-[#FACC15]"></i>
+            <i data-lucide="arrow-right" class="w-6 h-6 text-[#F8FAFC] group-hover:translate-x-0.5 transition-transform"></i>
+          </div>
+          <h2 class="mt-4 text-[22px] font-extrabold tracking-tight text-[#F8FAFC]">Lägg till en admin</h2>
+          <p class="mt-1.5 text-[14px] leading-snug text-[#94A3B8]">
+            Bjud in en medägare eller passare. Ta hand om hunden tillsammans.
+          </p>
+        </button>
+      </div>
+
+      <!-- Footer -->
+      <footer class="mt-8 pb-4 text-center">
+        <p class="text-sm font-bold text-[#F8FAFC]">Inget konto behövs.</p>
+        <p class="mt-1 text-xs leading-relaxed text-[#94A3B8] max-w-[280px] mx-auto">
+          Den här sidan visas bara första gången. Nästa gång kommer du direkt till hubben.
+        </p>
+        <p class="mt-4 text-[11px] text-[#64748B]">Du väljer själv vem som får tillgång.</p>
+      </footer>
+    </section>
+
+    <!-- ==================== 02 · THE HUB (HEM) ==================== -->
+    <section id="view-hub" class="hidden flex-1 flex-col px-5 pt-safe pb-nav-safe screen-fade-in">
+      <!-- Top Bar -->
+      <header class="flex items-center justify-between py-2.5">
+        <div class="flex items-center gap-2.5">
+          <svg class="w-7 h-7 text-[#A3E635]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="11" cy="4" r="2"/><circle cx="18" cy="8" r="2"/><circle cx="20" cy="16" r="2"/>
+            <path d="M9 10a5 5 0 0 1 5 5v3.5a3.5 3.5 0 0 1-6.84 1.045Q6.52 17.48 4.46 16.84A3.5 3.5 0 0 1 5.5 10Z"/>
+          </svg>
+          <span class="text-2xl font-extrabold tracking-tight text-[#F8FAFC]">bruce</span>
+        </div>
+        <button type="button" onclick="app.openNotificationsModal()" aria-label="Team och notiser" class="w-11 h-11 rounded-full bg-[#131B2E] border border-[#1E293B] flex items-center justify-center text-[#F8FAFC] hover:border-[#334155] active:scale-95 transition relative">
+          <i data-lucide="bell" class="w-5 h-5"></i>
+          <span id="hub-bell-badge" class="hidden absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-[#A3E635]"></span>
+        </button>
+      </header>
+
+      <!-- Greeting & Dog Avatar Switcher -->
+      <div class="mt-4 flex items-center justify-between gap-3">
+        <div>
+          <h1 class="text-[30px] leading-tight font-extrabold tracking-tight text-[#F8FAFC]">Hej Kimmy!</h1>
+          <p class="mt-0.5 text-[14px] text-[#94A3B8]">En bra dag börjar med en tass.</p>
+        </div>
+        <button type="button" onclick="app.openDogSwitcherModal()" aria-label="Byt aktiv hund" class="relative shrink-0 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#A3E635] rounded-full">
+          <img id="hub-dog-avatar" src="" alt="Aktiv hund" class="w-16 h-16 rounded-full object-cover border-[2.5px] border-[#A3E635] bg-[#131B2E]" />
+          <span id="hub-dog-switch-indicator" class="hidden absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-[#131B2E] border border-[#1E293B] flex items-center justify-center text-[#A3E635] shadow">
+            <i data-lucide="repeat" class="w-3 h-3"></i>
+          </span>
+        </button>
+      </div>
+
+      <!-- Dagens rörelse Card -->
+      <div class="mt-5 p-5 rounded-[24px] bg-[#131B2E] border border-[#1E293B]">
+        <p class="text-[11px] font-bold tracking-[0.1em] uppercase text-[#94A3B8]">DAGENS RÖRELSE</p>
+        <div class="mt-2 flex items-baseline justify-between">
+          <div class="flex items-baseline gap-1.5">
+            <span id="hub-today-km" class="text-[32px] font-extrabold tracking-tight text-[#F8FAFC] tabular-nums">3.8</span>
+            <span class="text-[15px] font-medium text-[#94A3B8] tabular-nums">/ 5 km</span>
+          </div>
+          <span id="hub-today-pct" class="text-[22px] font-extrabold text-[#A3E635] tabular-nums">76 %</span>
+        </div>
+        <!-- 15-segment dashed lime progress bar -->
+        <div id="hub-progress-segments" class="mt-3.5 grid grid-cols-15 gap-1.5" style="grid-template-columns: repeat(15, minmax(0, 1fr));">
+          <!-- Rendered by JS -->
+        </div>
+      </div>
+
+      <!-- 2 Bento Cards -->
+      <div class="mt-3.5 grid grid-cols-2 gap-3.5">
+        <button type="button" onclick="app.navigate('history')" class="text-left p-4 rounded-[22px] bg-[#131B2E] border border-[#1E293B] hover:border-[#334155] active:scale-[0.98] transition">
+          <div class="w-8 h-8 flex items-center justify-start text-[#A3E635]">
+            <i data-lucide="footprints" class="w-5 h-5"></i>
+          </div>
+          <p class="mt-2 text-xs font-medium text-[#94A3B8]">Senaste promenad</p>
+          <div class="mt-1 flex items-baseline gap-2 flex-wrap">
+            <span id="hub-last-walk-time" class="text-[24px] font-extrabold text-[#F8FAFC] tabular-nums">08:42</span>
+            <span id="hub-last-walk-dur" class="text-xs font-medium text-[#94A3B8] tabular-nums">24 min</span>
+          </div>
+        </button>
+
+        <button type="button" onclick="app.navigate('profile')" class="text-left p-4 rounded-[22px] bg-[#131B2E] border border-[#1E293B] hover:border-[#334155] active:scale-[0.98] transition">
+          <div class="w-8 h-8 flex items-center justify-start text-[#FACC15]">
+            <i data-lucide="scale" class="w-5 h-5"></i>
+          </div>
+          <p class="mt-2 text-xs font-medium text-[#94A3B8]">Vikt</p>
+          <div class="mt-1 flex items-baseline gap-2 flex-wrap">
+            <span class="text-[24px] font-extrabold text-[#F8FAFC] tabular-nums"><span id="hub-dog-weight">28</span> <span class="text-sm font-semibold text-[#94A3B8]">kg</span></span>
+            <span id="hub-dog-weight-status" class="text-xs font-medium text-[#94A3B8]">Stabil</span>
+          </div>
+        </button>
+      </div>
+
+      <!-- Dagens aktivitet Timeline -->
+      <div class="mt-6">
+        <div class="flex items-center justify-between mb-3.5">
+          <h2 class="text-[19px] font-extrabold tracking-tight text-[#F8FAFC]">Dagens aktivitet</h2>
+          <button type="button" onclick="app.navigate('history')" class="inline-flex items-center gap-1 text-xs font-bold text-[#A3E635] hover:underline py-1 px-1">
+            <span>Visa alla</span>
+            <i data-lucide="arrow-up-right" class="w-3.5 h-3.5"></i>
+          </button>
+        </div>
+
+        <div id="hub-timeline" class="relative space-y-3.5">
+          <!-- Rendered by JS -->
+        </div>
+      </div>
+
+      <!-- Primary CTA: STARTA PROMENAD -->
+      <div class="mt-6">
+        <button type="button" onclick="app.handleStartWalkClick()" class="w-full min-h-[58px] px-6 py-4 rounded-[20px] bg-[#A3E635] text-[#090D16] font-extrabold text-[15px] tracking-wide flex items-center justify-between shadow-lg shadow-[#A3E635]/15 hover:brightness-105 active:scale-[0.985] transition">
+          <span class="flex items-center gap-3">
+            <i data-lucide="footprints" class="w-5 h-5 text-[#090D16]"></i>
+            <span>STARTA PROMENAD</span>
+          </span>
+          <i data-lucide="arrow-right" class="w-5 h-5 text-[#090D16]"></i>
+        </button>
+      </div>
+    </section>
+
+    <!-- ==================== HISTORIK VIEW (TAB 2) ==================== -->
+    <section id="view-history" class="hidden flex-1 flex-col px-5 pt-safe pb-nav-safe screen-fade-in">
+      <!-- Top Bar -->
+      <header class="flex items-center justify-between py-2.5">
+        <div>
+          <h1 class="text-[24px] font-extrabold tracking-tight text-[#F8FAFC]">Historik</h1>
+          <p class="text-xs text-[#94A3B8]">Promenader, loggar & viktutveckling</p>
+        </div>
+        <button type="button" onclick="app.openManualLogModal()" class="min-h-[42px] px-4 py-2 rounded-full bg-[#A3E635] text-[#090D16] text-xs font-extrabold flex items-center gap-1.5 active:scale-95 transition">
+          <i data-lucide="plus" class="w-4 h-4"></i>
+          <span>Logga</span>
+        </button>
+      </header>
+
+      <!-- Dog Filter Row -->
+      <div id="history-dog-filters" class="mt-3 flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5">
+        <!-- Rendered by JS -->
+      </div>
+
+      <!-- Event Type Filter Row -->
+      <div id="history-type-filters" class="mt-2.5 flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5">
+        <!-- Rendered by JS -->
+      </div>
+
+      <!-- History Summary Bento -->
+      <div class="mt-4 grid grid-cols-2 gap-3">
+        <div class="p-4 rounded-[20px] bg-[#131B2E] border border-[#1E293B]">
+          <p class="text-[11px] font-bold uppercase tracking-wider text-[#94A3B8]">Visade promenader</p>
+          <p id="history-stat-walks" class="mt-1 text-2xl font-extrabold text-[#F8FAFC] tabular-nums">0</p>
+        </div>
+        <div class="p-4 rounded-[20px] bg-[#131B2E] border border-[#1E293B]">
+          <p class="text-[11px] font-bold uppercase tracking-wider text-[#94A3B8]">Total distans</p>
+          <p class="mt-1 text-2xl font-extrabold text-[#A3E635] tabular-nums"><span id="history-stat-km">0.0</span> <span class="text-sm font-semibold text-[#94A3B8]">km</span></p>
+        </div>
+      </div>
+
+      <!-- History List -->
+      <div id="history-list" class="mt-5 space-y-5">
+        <!-- Rendered by JS -->
+      </div>
+    </section>
+
+    <!-- ==================== EXEMPEL · VÄLJ FLERA HUNDAR ==================== -->
+    <section id="view-select-dogs" class="hidden flex-1 flex-col justify-between px-5 pt-safe pb-safe min-h-screen screen-fade-in">
+      <div>
+        <header class="flex items-center gap-3.5 py-2.5">
+          <button type="button" onclick="app.navigate('hub')" aria-label="Tillbaka" class="w-11 h-11 rounded-full bg-[#131B2E] border border-[#1E293B] flex items-center justify-center text-[#F8FAFC] active:scale-95 transition">
+            <i data-lucide="chevron-left" class="w-5 h-5"></i>
+          </button>
+          <span class="text-lg font-extrabold text-[#F8FAFC]">Mina hundar</span>
+        </header>
+
+        <div class="mt-4">
+          <h1 class="text-[32px] leading-[1.1] font-extrabold tracking-tight text-[#F8FAFC]">Vilka följer<br />med idag?</h1>
+          <p class="mt-2.5 text-[14px] text-[#94A3B8]">Välj en eller flera hundar till promenaden.</p>
+        </div>
+
+        <div class="mt-6 flex items-center justify-between">
+          <span class="text-[11px] font-bold tracking-[0.1em] uppercase text-[#94A3B8]">DINA HUNDAR</span>
+          <span id="select-dogs-count-badge" class="px-3 py-1 rounded-full bg-[#222B17] border border-[#36471E] text-[#A3E635] text-xs font-bold tabular-nums">2 valda</span>
+        </div>
+
+        <div id="select-dogs-list" class="mt-3.5 space-y-3">
+          <!-- Rendered by JS -->
+        </div>
+
+        <!-- + Lägg till hund -->
+        <button type="button" onclick="app.openAddDog(false, 'select-dogs')" class="w-full mt-3 px-5 py-4 rounded-[22px] bg-[#090D16] border border-[#1E293B] hover:border-[#A3E635]/60 flex items-center gap-3 text-[#A3E635] font-bold text-sm active:scale-[0.985] transition">
+          <i data-lucide="plus" class="w-5 h-5"></i>
+          <span>Lägg till hund</span>
+        </button>
+
+        <!-- Info Box -->
+        <div class="mt-4 p-4 rounded-[20px] bg-[#131B2E] border border-[#1E293B] flex items-start gap-3">
+          <i data-lucide="route" class="w-5 h-5 text-[#A3E635] shrink-0 mt-0.5"></i>
+          <div>
+            <p class="text-sm font-bold text-[#F8FAFC]">En promenad. Egen historik.</p>
+            <p class="mt-0.5 text-xs text-[#94A3B8]">Rutt och tid delas. Loggar sparas per hund.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-6 pb-2">
+        <button id="select-dogs-start-btn" type="button" onclick="app.startWalkWithSelectedDogs()" class="w-full min-h-[58px] px-6 py-4 rounded-[20px] bg-[#A3E635] text-[#090D16] font-extrabold text-[15px] tracking-wide flex items-center justify-between shadow-lg shadow-[#A3E635]/15 active:scale-[0.985] transition disabled:opacity-40 disabled:pointer-events-none">
+          <span id="select-dogs-cta-text">STARTA MED 2 HUNDAR</span>
+          <i data-lucide="arrow-right" class="w-5 h-5 text-[#090D16]"></i>
+        </button>
+        <p id="select-dogs-summary" class="mt-3 text-center text-xs text-[#94A3B8]">Bruce + Luna följer med</p>
+      </div>
+    </section>
+
+    <!-- ==================== 03 · ACTIVE GPS WALK (1 OR MULTI-DOG) ==================== -->
+    <section id="view-walk" class="hidden flex-1 flex-col min-h-screen bg-[#090D16] screen-fade-in">
+      <!-- Top Header -->
+      <header class="px-5 pt-safe pb-3 flex items-center justify-between gap-2 bg-[#090D16]">
+        <div class="flex items-center gap-3 min-w-0">
+          <button type="button" onclick="app.confirmLeaveWalk()" aria-label="Tillbaka" class="w-11 h-11 shrink-0 rounded-full bg-[#131B2E] border border-[#1E293B] flex items-center justify-center text-[#F8FAFC] active:scale-95 transition">
+            <i data-lucide="chevron-left" class="w-5 h-5"></i>
+          </button>
+          <div class="min-w-0">
+            <h1 class="text-[18px] font-extrabold text-[#F8FAFC] truncate">Promenad pågår</h1>
+            <p id="walk-subtitle" class="text-xs text-[#94A3B8] truncate">Du & Bruce. Ut på äventyr.</p>
+          </div>
+        </div>
+        <div class="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#1F2A14] border border-[#36471E]">
+          <span class="w-2 h-2 rounded-full bg-[#A3E635] live-dot-pulse"></span>
+          <span class="text-[11px] font-extrabold tracking-wider text-[#A3E635]">LIVE</span>
+        </div>
+      </header>
+
+      <!-- Live Metrics Strip -->
+      <div class="px-5 pb-4 pt-1 grid grid-cols-2 border-b border-[#1E293B]/70 bg-[#090D16]">
+        <div class="pr-4 border-r border-[#1E293B]">
+          <div class="flex items-baseline gap-1.5">
+            <span id="walk-distance" class="text-[40px] leading-none font-extrabold text-[#F8FAFC] tabular-nums">0.0</span>
+            <span class="text-base font-bold text-[#94A3B8]">km</span>
+          </div>
+          <p id="walk-dist-label" class="mt-1.5 text-[10px] font-bold tracking-[0.12em] uppercase text-[#94A3B8]">DISTANS</p>
+        </div>
+        <div class="pl-5">
+          <div class="flex items-baseline gap-1.5">
+            <span id="walk-minutes" class="text-[40px] leading-none font-extrabold text-[#F8FAFC] tabular-nums">0</span>
+            <span class="text-base font-bold text-[#94A3B8]">min</span>
+          </div>
+          <p id="walk-time-label" class="mt-1.5 text-[10px] font-bold tracking-[0.12em] uppercase text-[#94A3B8]">TID I RÖRELSE</p>
+        </div>
+      </div>
+
+      <!-- Interactive Dark Map Container -->
+      <div class="relative flex-1 min-h-[250px] bg-[#0D1821]">
+        <div id="walk-map" class="w-full h-full min-h-[250px] z-0"></div>
+
+        <!-- Top-Left GPS Accuracy Pill -->
+        <div id="walk-gps-pill" class="absolute top-3 left-3 z-[400] px-3 py-1.5 rounded-full bg-[#090D16]/85 backdrop-blur border border-[#1E293B] text-[11px] font-bold text-[#A3E635] tabular-nums shadow">
+          GPS ±5 m
+        </div>
+
+        <!-- Top-Right Demo Simulation Toggle Pill -->
+        <button id="walk-sim-btn" type="button" onclick="app.toggleSimulatedWalk()" class="absolute top-3 right-3 z-[400] min-h-[34px] px-3 py-1.5 rounded-full bg-[#131B2E]/90 backdrop-blur border border-[#1E293B] hover:border-[#A3E635] text-[11px] font-bold text-[#F8FAFC] flex items-center gap-1.5 shadow transition active:scale-95">
+          <i data-lucide="navigation" class="w-3.5 h-3.5 text-[#A3E635]"></i>
+          <span id="walk-sim-label">Simulera GPS</span>
+        </button>
+
+        <!-- Bottom-Right Recenter Button -->
+        <button type="button" onclick="app.recenterWalkMap()" aria-label="Centrera karta" class="absolute bottom-4 right-3 z-[400] w-11 h-11 rounded-full bg-[#131B2E]/95 backdrop-blur border border-[#1E293B] text-[#F8FAFC] flex items-center justify-center shadow-lg hover:border-[#A3E635] active:scale-95 transition">
+          <i data-lucide="crosshair" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Bottom Quick Log Drawer -->
+      <div class="bg-[#131B2E] border-t border-[#1E293B] rounded-t-[28px] -mt-3 relative z-[450] px-5 pt-2.5 pb-safe shadow-[0_-12px_32px_rgba(0,0,0,0.6)]">
+        <div class="w-10 h-1 rounded-full bg-[#334155] mx-auto mb-3"></div>
+
+        <!-- Single-Dog Quick Log Layout -->
+        <div id="walk-single-log-panel">
+          <div class="flex items-center justify-between mb-3.5">
+            <span class="text-[11px] font-bold tracking-[0.1em] uppercase text-[#F8FAFC]">SNABBLOGGA</span>
+            <span class="text-xs text-[#94A3B8]">Ett tryck. Tillbaka till nuet.</span>
+          </div>
+
+          <div class="grid grid-cols-3 gap-3 justify-items-center py-1">
+            <!-- Nr 1 -->
+            <button type="button" onclick="app.logWalkEvent(null, 'nr1')" class="relative w-24 h-24 rounded-full bg-[#FACC15] text-[#090D16] flex flex-col items-center justify-center gap-1 shadow-md hover:brightness-105 active:scale-95 transition">
+              <i data-lucide="droplet" class="w-6 h-6 text-[#090D16]"></i>
+              <span class="text-sm font-extrabold text-[#090D16]">Nr 1</span>
+              <span id="single-badge-nr1" class="hidden absolute -top-1 -right-1 min-w-[24px] h-6 px-1.5 rounded-full bg-[#090D16] border-2 border-[#FACC15] text-[#FACC15] text-[11px] font-extrabold flex items-center justify-center tabular-nums">0</span>
+            </button>
+
+            <!-- Nr 2 -->
+            <button type="button" onclick="app.logWalkEvent(null, 'nr2')" class="relative w-24 h-24 rounded-full bg-[#FB923C] text-[#090D16] flex flex-col items-center justify-center gap-1 shadow-md hover:brightness-105 active:scale-95 transition">
+              <svg class="w-6 h-6 text-[#090D16]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 4c1.5 0 2.5 1 2.5 2.2 0 .7-.3 1.3-.8 1.8h.8c2 0 3.5 1.3 3.5 3 0 .8-.4 1.6-1 2.1 1.2.6 2 1.7 2 3 0 2-1.8 3.4-4 3.4H9c-2.2 0-4-1.4-4-3.4 0-1.3.8-2.4 2-3-.6-.5-1-1.3-1-2.1 0-1.7 1.5-3 3.5-3h.8c-.5-.5-.8-1.1-.8-1.8C9.5 5 10.5 4 12 4Z"/>
+              </svg>
+              <span class="text-sm font-extrabold text-[#090D16]">Nr 2</span>
+              <span id="single-badge-nr2" class="hidden absolute -top-1 -right-1 min-w-[24px] h-6 px-1.5 rounded-full bg-[#090D16] border-2 border-[#FB923C] text-[#FB923C] text-[11px] font-extrabold flex items-center justify-center tabular-nums">0</span>
+            </button>
+
+            <!-- Tränat -->
+            <button type="button" onclick="app.logWalkEvent(null, 'training')" class="relative w-24 h-24 rounded-full bg-[#A3E635] text-[#090D16] flex flex-col items-center justify-center gap-1 shadow-md hover:brightness-105 active:scale-95 transition">
+              <i data-lucide="sparkle" class="w-6 h-6 text-[#090D16]"></i>
+              <span class="text-sm font-extrabold text-[#090D16]">Tränat</span>
+              <span id="single-badge-training" class="hidden absolute -top-1 -right-1 min-w-[24px] h-6 px-1.5 rounded-full bg-[#090D16] border-2 border-[#A3E635] text-[#A3E635] text-[11px] font-extrabold flex items-center justify-center tabular-nums">0</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Multi-Dog Quick Log Layout -->
+        <div id="walk-multi-log-panel" class="hidden">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-[11px] font-bold tracking-[0.1em] uppercase text-[#F8FAFC]">LOGGA PER HUND</span>
+            <span class="text-xs text-[#94A3B8]">Tryck på rätt hundrad</span>
+          </div>
+          <div id="walk-multi-dog-rows" class="divide-y divide-[#1E293B]">
+            <!-- Rendered by JS -->
+          </div>
+        </div>
+
+        <!-- Emergency Coral Red Button -->
+        <button type="button" onclick="app.triggerEmergencyFlow()" class="w-full mt-4 min-h-[52px] px-5 py-3.5 rounded-[18px] bg-[#FF4D5E] text-[#090D16] font-extrabold text-[15px] flex items-center justify-center gap-2.5 shadow-lg shadow-[#FF4D5E]/20 hover:brightness-105 active:scale-[0.985] transition">
+          <i data-lucide="siren" class="w-5 h-5 text-[#090D16]"></i>
+          <span id="walk-emergency-label">Hunden har sprungit iväg</span>
+        </button>
+
+        <!-- End Walk Button -->
+        <button type="button" onclick="app.finishActiveWalk()" class="w-full mt-2.5 min-h-[50px] px-5 py-3 rounded-[18px] bg-[#090D16]/60 border border-[#334155] text-[#F8FAFC] font-bold text-[15px] flex items-center justify-center gap-2.5 hover:border-[#64748B] active:scale-[0.985] transition">
+          <i data-lucide="square" class="w-4 h-4 text-[#F8FAFC]"></i>
+          <span id="walk-end-label">Avsluta promenad</span>
+        </button>
+
+        <p id="walk-footer-note" class="mt-2.5 text-center text-[11px] text-[#64748B]">Alla loggar sparas automatiskt</p>
+      </div>
+    </section>
+
+    <!-- ==================== 04 · LOST DOG EMERGENCY ("HITTA BRUCE") ==================== -->
+    <section id="view-emergency" class="hidden flex-1 flex-col px-5 pt-safe pb-safe min-h-screen bg-[#090D16] screen-fade-in">
+      <!-- Top Bar -->
+      <header class="flex items-center gap-3.5 py-2.5">
+        <button type="button" onclick="app.exitEmergencyMode()" aria-label="Tillbaka till promenad" class="w-11 h-11 rounded-full bg-[#131B2E] border border-[#1E293B] flex items-center justify-center text-[#F8FAFC] active:scale-95 transition">
+          <i data-lucide="chevron-left" class="w-5 h-5"></i>
+        </button>
+        <div>
+          <h1 id="emergency-header-title" class="text-[20px] font-extrabold text-[#F8FAFC]">Hitta Bruce</h1>
+          <p class="text-xs text-[#94A3B8]">Vi hjälper dig att agera snabbt.</p>
+        </div>
+      </header>
+
+      <!-- High-Alert Coral Card -->
+      <div class="mt-3 p-5 rounded-[26px] bg-[#FF4D5E] text-[#090D16] flex items-center justify-between gap-3 shadow-lg shadow-[#FF4D5E]/20">
+        <div>
+          <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#FACC15] text-[#090D16] text-[11px] font-extrabold tracking-wider uppercase">
+            <i data-lucide="siren" class="w-3.5 h-3.5 text-[#090D16]"></i>
+            <span>AKUTLÄGE</span>
+          </span>
+          <h2 id="emergency-banner-title" class="mt-3 text-[24px] leading-[1.1] font-extrabold tracking-tight uppercase text-[#090D16]">
+            BRUCE HAR<br />SPRUNGIT IVÄG!
+          </h2>
+        </div>
+        <img id="emergency-dog-avatar" src="" alt="Bortsprungen hund" class="w-16 h-16 shrink-0 rounded-full object-cover border-[2.5px] border-[#090D16] bg-[#131B2E]" />
+      </div>
+
+      <!-- Dark Map Card with Last Known Pin -->
+      <div class="mt-4 relative rounded-[26px] overflow-hidden border border-[#1E293B] bg-[#0D1821] h-[250px]">
+        <div id="emergency-map" class="w-full h-full z-0"></div>
+
+        <!-- Top-Left Badge -->
+        <div class="absolute top-3 left-3 z-[400] flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#090D16]/90 backdrop-blur border border-[#1E293B]">
+          <span class="w-2 h-2 rounded-full bg-[#FACC15]"></span>
+          <span class="text-[10px] font-extrabold tracking-[0.08em] uppercase text-[#FACC15]">SENAST KÄNDA POSITION</span>
+        </div>
+
+        <!-- Bottom Overlay Coordinates Card -->
+        <div class="absolute bottom-3 left-3 right-3 z-[400] p-3.5 rounded-[18px] bg-[#131B2E]/95 backdrop-blur border border-[#1E293B] flex items-start gap-3 shadow-xl">
+          <i data-lucide="map-pin" class="w-5 h-5 text-[#FACC15] shrink-0 mt-0.5"></i>
+          <div class="min-w-0">
+            <p id="emergency-place-name" class="text-sm font-extrabold text-[#F8FAFC] truncate">Hagaparken, Solna</p>
+            <p id="emergency-coords-text" class="mt-0.5 text-xs font-mono text-[#CBD5E1] tabular-nums">59.3609° N, 18.0393° E</p>
+            <p id="emergency-time-text" class="mt-0.5 text-[11px] text-[#94A3B8]">Idag 09:41 · för mindre än 1 min sedan</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="mt-5">
+        <h3 class="text-[18px] font-extrabold text-[#F8FAFC]">Dela platsen. Få fler att leta.</h3>
+
+        <button type="button" onclick="app.shareEmergencyLocation()" class="w-full mt-3 min-h-[60px] px-5 py-3.5 rounded-[20px] bg-[#FACC15] text-[#090D16] font-extrabold text-[15px] flex items-center gap-4 text-left shadow-lg shadow-[#FACC15]/15 hover:brightness-105 active:scale-[0.985] transition">
+          <i data-lucide="share" class="w-6 h-6 shrink-0 text-[#090D16]"></i>
+          <span class="leading-tight">Dela GPS-position<br />&amp; Efterlysning</span>
+        </button>
+
+        <button type="button" onclick="app.callTeamOrOwner()" class="w-full mt-3 min-h-[54px] px-5 py-3.5 rounded-[20px] bg-[#131B2E] border border-[#1E293B] text-[#F8FAFC] font-bold text-[15px] flex items-center gap-4 hover:border-[#334155] active:scale-[0.985] transition">
+          <i data-lucide="phone" class="w-5 h-5 shrink-0 text-[#F8FAFC]"></i>
+          <span>Ring Ägare/Passare</span>
+        </button>
+
+        <button type="button" onclick="app.exitEmergencyMode()" class="w-full mt-3 min-h-[58px] px-5 py-3.5 rounded-[20px] bg-[#A3E635] text-[#090D16] flex items-center gap-4 text-left shadow-lg shadow-[#A3E635]/15 hover:brightness-105 active:scale-[0.985] transition">
+          <i data-lucide="check" class="w-5 h-5 shrink-0 text-[#090D16]"></i>
+          <div>
+            <p id="emergency-back-btn-title" class="text-[15px] font-extrabold leading-tight text-[#090D16]">Bruce är tillbaka</p>
+            <p class="text-xs font-semibold text-[#090D16]/80">Avsluta akutläget</p>
+          </div>
+        </button>
+
+        <p class="mt-4 text-center text-[11px] text-[#64748B]">Senast sparad GPS-plats, inte spårning i realtid.</p>
+      </div>
+    </section>
+
+    <!-- ==================== 05 · PROFILE & HEALTH ==================== -->
+    <section id="view-profile" class="hidden flex-1 flex-col px-5 pt-safe pb-nav-safe screen-fade-in">
+      <!-- Top Bar -->
+      <header class="flex items-center justify-between py-2.5">
+        <div class="flex items-center gap-3">
+          <button type="button" onclick="app.navigate('hub')" aria-label="Tillbaka till hem" class="w-11 h-11 rounded-full bg-[#131B2E] border border-[#1E293B] flex items-center justify-center text-[#F8FAFC] active:scale-95 transition">
+            <i data-lucide="chevron-left" class="w-5 h-5"></i>
+          </button>
+          <h1 class="text-[20px] font-extrabold text-[#F8FAFC]">Profil &amp; hälsa</h1>
+        </div>
+        <button type="button" onclick="app.openEditProfileModal()" aria-label="Redigera hundprofil" class="w-11 h-11 rounded-full bg-[#131B2E] border border-[#1E293B] flex items-center justify-center text-[#F8FAFC] hover:border-[#A3E635] active:scale-95 transition">
+          <i data-lucide="pencil" class="w-4 h-4"></i>
+        </button>
+      </header>
+
+      <!-- Dog Switcher Strip (Visible if >1 dog) -->
+      <div id="profile-dog-switcher" class="mt-2 flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+        <!-- Rendered by JS -->
+      </div>
+
+      <!-- Profile Hero -->
+      <div class="mt-3 flex items-center gap-4">
+        <img id="profile-avatar" src="" alt="Hundprofil" class="w-20 h-20 rounded-full object-cover border-[2.5px] border-[#A3E635] bg-[#131B2E] shrink-0" />
+        <div class="min-w-0">
+          <p class="text-[11px] font-extrabold tracking-[0.12em] uppercase text-[#A3E635]">DIN BÄSTA VÄN</p>
+          <h2 id="profile-name" class="text-[30px] leading-tight font-extrabold text-[#F8FAFC] truncate">Bruce</h2>
+          <p id="profile-meta" class="text-sm text-[#94A3B8]">Labrador · 4 år</p>
+        </div>
+      </div>
+
+      <!-- 2 Health Bento Cards -->
+      <div class="mt-5 grid grid-cols-2 gap-3.5">
+        <!-- Weight Card with Sparkline -->
+        <button type="button" onclick="app.openEditProfileModal('weight')" class="text-left p-4 rounded-[22px] bg-[#131B2E] border border-[#1E293B] hover:border-[#334155] active:scale-[0.98] transition">
+          <div class="flex items-center gap-2 text-xs font-semibold text-[#94A3B8]">
+            <i data-lucide="scale" class="w-4 h-4 text-[#A3E635]"></i>
+            <span>Vikt</span>
+          </div>
+          <div class="mt-3 flex items-end justify-between gap-2">
+            <div class="flex items-baseline gap-1">
+              <span id="profile-weight" class="text-[28px] leading-none font-extrabold text-[#F8FAFC] tabular-nums">28</span>
+              <span class="text-xs font-semibold text-[#94A3B8]">kg</span>
+            </div>
+            <svg id="profile-weight-sparkline" class="w-16 h-7 overflow-visible" viewBox="0 0 64 28">
+              <!-- Rendered by JS -->
+            </svg>
+          </div>
+          <p id="profile-weight-trend" class="mt-2 text-xs font-bold text-[#A3E635]">Stabil vikt</p>
+        </button>
+
+        <!-- Allergies Card -->
+        <button type="button" onclick="app.openEditProfileModal('allergy')" class="text-left p-4 rounded-[22px] bg-[#131B2E] border border-[#1E293B] hover:border-[#334155] active:scale-[0.98] transition">
+          <div class="flex items-center gap-2 text-xs font-semibold text-[#94A3B8]">
+            <i data-lucide="alert-triangle" class="w-4 h-4 text-[#FACC15]"></i>
+            <span>Allergier</span>
+          </div>
+          <p id="profile-allergy" class="mt-3 text-[21px] leading-tight font-extrabold text-[#FACC15] truncate">Kyckling</p>
+          <p id="profile-allergy-note" class="mt-2 text-xs text-[#94A3B8]">Undvik i foder &amp; godis</p>
+        </button>
+      </div>
+
+      <!-- Medication Card -->
+      <button type="button" onclick="app.openEditProfileModal('medication')" class="w-full mt-3.5 p-4 rounded-[22px] bg-[#131B2E] border border-[#1E293B] hover:border-[#334155] flex items-center justify-between gap-3 text-left active:scale-[0.985] transition">
+        <div class="flex items-center gap-3.5 min-w-0">
+          <div class="w-11 h-11 rounded-full bg-[#1F2A14] border border-[#36471E] flex items-center justify-center shrink-0">
+            <i data-lucide="pill" class="w-5 h-5 text-[#A3E635]"></i>
+          </div>
+          <div class="min-w-0">
+            <p class="text-sm font-extrabold text-[#F8FAFC]">Medicinering</p>
+            <p id="profile-medication" class="text-xs text-[#94A3B8] truncate">Ingen aktuell medicinering</p>
+          </div>
+        </div>
+        <i data-lucide="check" class="w-5 h-5 text-[#A3E635] shrink-0"></i>
+      </button>
+
+      <!-- Veckan i tassar -->
+      <div class="mt-6">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-[19px] font-extrabold text-[#F8FAFC]">Veckan i tassar</h3>
+          <span id="profile-week-range" class="text-[11px] font-bold tracking-wider uppercase text-[#94A3B8]">11–17 NOV</span>
+        </div>
+
+        <div class="p-5 rounded-[24px] bg-[#131B2E] border border-[#1E293B]">
+          <div class="grid grid-cols-2 pb-4 border-b border-[#1E293B]">
+            <div class="pr-4 border-r border-[#1E293B]">
+              <div class="flex items-baseline gap-1.5">
+                <span id="profile-week-km" class="text-[28px] leading-none font-extrabold text-[#F8FAFC] tabular-nums">24.6</span>
+                <span class="text-sm font-semibold text-[#94A3B8]">km</span>
+              </div>
+              <p class="mt-1 text-xs text-[#94A3B8]">Senaste 7 dagarna</p>
+            </div>
+            <div class="pl-5">
+              <div class="flex items-baseline gap-1.5">
+                <span id="profile-week-walks" class="text-[28px] leading-none font-extrabold text-[#F8FAFC] tabular-nums">14</span>
+              </div>
+              <p class="mt-1 text-xs text-[#94A3B8]">promenader</p>
+            </div>
+          </div>
+
+          <!-- 7-day Bar Chart -->
+          <div id="profile-week-bars" class="mt-4 grid grid-cols-7 gap-2.5 items-end h-28 pt-2">
+            <!-- Rendered by JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Team & Admin Shortcut -->
+      <button type="button" onclick="app.openAddAdmin(false, 'profile')" class="w-full mt-3.5 p-4 rounded-[20px] bg-[#131B2E] border border-[#1E293B] hover:border-[#334155] flex items-center justify-between text-left active:scale-[0.985] transition">
+        <div class="flex items-center gap-3">
+          <i data-lucide="users" class="w-5 h-5 text-[#FACC15]"></i>
+          <div>
+            <p class="text-sm font-bold text-[#F8FAFC]">Ditt hundteam</p>
+            <p id="profile-team-summary" class="text-xs text-[#94A3B8]">1 medlem · Hantera behörighet</p>
+          </div>
+        </div>
+        <i data-lucide="chevron-right" class="w-5 h-5 text-[#94A3B8]"></i>
+      </button>
+
+      <!-- Export PDF CTA -->
+      <button type="button" onclick="app.exportVetReport()" class="w-full mt-4 min-h-[56px] px-6 py-4 rounded-[20px] bg-[#A3E635] text-[#090D16] font-extrabold text-[15px] flex items-center justify-center gap-2.5 shadow-lg shadow-[#A3E635]/15 hover:brightness-105 active:scale-[0.985] transition">
+        <i data-lucide="download" class="w-5 h-5 text-[#090D16]"></i>
+        <span>Exportera Rapport (PDF)</span>
+      </button>
+    </section>
+
+    <!-- ==================== 06 · ADD A DOG ==================== -->
+    <section id="view-add-dog" class="hidden flex-1 flex-col justify-between px-5 pt-safe pb-safe min-h-screen screen-fade-in">
+      <div>
+        <header class="flex items-center gap-3.5 py-2.5">
+          <button type="button" onclick="app.goBackFromForm()" aria-label="Tillbaka" class="w-11 h-11 rounded-full bg-[#131B2E] border border-[#1E293B] flex items-center justify-center text-[#F8FAFC] active:scale-95 transition">
+            <i data-lucide="chevron-left" class="w-5 h-5"></i>
+          </button>
+          <h1 id="add-dog-header" class="text-lg font-extrabold text-[#F8FAFC]">Din första hundprofil</h1>
+        </header>
+
+        <div class="mt-4">
+          <p id="add-dog-kicker" class="text-[11px] font-extrabold tracking-[0.12em] uppercase text-[#A3E635]">STEG 1 AV 2</p>
+          <h2 id="add-dog-title" class="mt-2 text-[32px] leading-[1.1] font-extrabold tracking-tight text-[#F8FAFC]">Vem är din<br />bästa vän?</h2>
+          <p id="add-dog-subtitle" class="mt-2.5 text-sm leading-relaxed text-[#94A3B8]">Börja med det viktigaste. Du kan lägga till fler detaljer när ni är redo.</p>
+        </div>
+
+        <form id="form-add-dog" onsubmit="app.submitAddDog(event)" class="mt-5 space-y-4">
+          <!-- Photo Picker -->
+          <label class="block cursor-pointer p-4 rounded-[22px] bg-[#131B2E] border border-[#1E293B] hover:border-[#A3E635]/60 transition">
+            <input id="dog-photo-input" type="file" accept="image/*" class="hidden" onchange="app.handleDogPhotoUpload(event)" />
+            <div class="flex items-center justify-between gap-3">
+              <div class="flex items-center gap-3.5">
+                <div id="dog-photo-preview-wrap" class="w-14 h-14 rounded-full bg-[#1F2A14] border border-[#36471E] flex items-center justify-center overflow-hidden shrink-0">
+                  <i data-lucide="camera" class="w-6 h-6 text-[#A3E635]"></i>
+                </div>
+                <div>
+                  <p id="dog-photo-title" class="text-sm font-extrabold text-[#F8FAFC]">Lägg till en bild</p>
+                  <p id="dog-photo-desc" class="text-xs text-[#94A3B8]">Valfritt · gör profilen personlig</p>
+                </div>
+              </div>
+              <span id="dog-photo-action" class="text-sm font-bold text-[#A3E635]">
+                <i data-lucide="plus" class="w-5 h-5"></i>
+              </span>
+            </div>
+          </label>
+
+          <!-- Dog Name -->
+          <div>
+            <label for="dog-name-input" class="block text-xs font-bold text-[#F8FAFC] mb-2">Hundens namn *</label>
+            <input id="dog-name-input" type="text" required placeholder="T.ex. Bruce eller Luna" class="w-full min-h-[52px] px-4 py-3 rounded-[16px] bg-[#131B2E] border border-[#1E293B] focus:border-[#A3E635] focus:outline-none text-[#F8FAFC] text-[15px] font-medium placeholder-[#64748B]" />
+          </div>
+
+          <!-- Breed -->
+          <div>
+            <label for="dog-breed-input" class="block text-xs font-bold text-[#CBD5E1] mb-2">Ras · valfritt</label>
+            <div class="relative">
+              <select id="dog-breed-input" class="w-full min-h-[52px] px-4 py-3 rounded-[16px] bg-[#131B2E] border border-[#1E293B] focus:border-[#A3E635] focus:outline-none text-[#F8FAFC] text-[15px] font-medium appearance-none">
+                <option value="Labrador">Labrador</option>
+                <option value="Golden retriever">Golden retriever</option>
+                <option value="Blandras">Blandras</option>
+                <option value="Schäfer">Schäfer</option>
+                <option value="Fransk bulldogg">Fransk bulldogg</option>
+                <option value="Border collie">Border collie</option>
+                <option value="Tax">Tax</option>
+                <option value="Pudel">Pudel</option>
+                <option value="Australian shepherd">Australian shepherd</option>
+              </select>
+              <i data-lucide="chevron-down" class="w-5 h-5 text-[#94A3B8] absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+            </div>
+          </div>
+
+          <!-- Age & Weight -->
+          <div class="grid grid-cols-2 gap-3.5">
+            <div>
+              <label for="dog-age-input" class="block text-xs font-bold text-[#CBD5E1] mb-2">Ålder · valfritt</label>
+              <div class="relative">
+                <input id="dog-age-input" type="number" min="0" max="30" step="1" placeholder="4" class="w-full min-h-[52px] pl-4 pr-10 py-3 rounded-[16px] bg-[#131B2E] border border-[#1E293B] focus:border-[#A3E635] focus:outline-none text-[#F8FAFC] text-[15px] font-medium tabular-nums" />
+                <span class="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-semibold text-[#94A3B8]">år</span>
+              </div>
+            </div>
+            <div>
+              <label for="dog-weight-input" class="block text-xs font-bold text-[#CBD5E1] mb-2">Vikt · valfritt</label>
+              <div class="relative">
+                <input id="dog-weight-input" type="number" min="0.5" max="120" step="0.1" placeholder="28" class="w-full min-h-[52px] pl-4 pr-10 py-3 rounded-[16px] bg-[#131B2E] border border-[#1E293B] focus:border-[#A3E635] focus:outline-none text-[#F8FAFC] text-[15px] font-medium tabular-nums" />
+                <span class="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-semibold text-[#94A3B8]">kg</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="pt-3">
+            <button type="submit" class="w-full min-h-[56px] px-6 py-4 rounded-[20px] bg-[#A3E635] text-[#090D16] font-extrabold text-[15px] flex items-center justify-between shadow-lg shadow-[#A3E635]/15 hover:brightness-105 active:scale-[0.985] transition">
+              <span id="add-dog-submit-label">Spara &amp; bjud in admin</span>
+              <i data-lucide="arrow-right" class="w-5 h-5 text-[#090D16]"></i>
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <div class="mt-6 pb-2 text-center">
+        <button id="add-dog-skip-btn" type="button" onclick="app.skipAddDog()" class="text-sm font-bold text-[#F8FAFC] hover:text-[#A3E635] py-2 px-4 transition">
+          Hoppa över för nu
+        </button>
+        <p id="add-dog-footer-note" class="mt-1 text-xs text-[#64748B]">Bara namnet behövs för att komma igång.</p>
+      </div>
+    </section>
+
+    <!-- ==================== 07 · INVITE AN ADMIN ==================== -->
+    <section id="view-invite-admin" class="hidden flex-1 flex-col justify-between px-5 pt-safe pb-safe min-h-screen screen-fade-in">
+      <div>
+        <header class="flex items-center gap-3.5 py-2.5">
+          <button type="button" onclick="app.goBackFromForm()" aria-label="Tillbaka" class="w-11 h-11 rounded-full bg-[#131B2E] border border-[#1E293B] flex items-center justify-center text-[#F8FAFC] active:scale-95 transition">
+            <i data-lucide="chevron-left" class="w-5 h-5"></i>
+          </button>
+          <h1 class="text-lg font-extrabold text-[#F8FAFC]">Ditt hundteam</h1>
+        </header>
+
+        <div class="mt-4">
+          <p id="invite-admin-kicker" class="text-[11px] font-extrabold tracking-[0.12em] uppercase text-[#A3E635]">STEG 2 AV 2 · VALFRITT</p>
+          <h2 class="mt-2 text-[32px] leading-[1.1] font-extrabold tracking-tight text-[#F8FAFC]">Fler händer.<br />Tryggare tassar.</h2>
+          <p id="invite-admin-subtitle" class="mt-2.5 text-sm leading-relaxed text-[#94A3B8]">Bjud in någon som hjälper till med Bruce. Du väljer vem som får tillgång.</p>
+        </div>
+
+        <!-- Dog Team Preview Card -->
+        <div class="mt-5 p-3.5 rounded-[20px] bg-[#131B2E] border border-[#1E293B] flex items-center justify-between gap-3">
+          <div class="flex items-center gap-3 min-w-0">
+            <img id="invite-dog-avatar" src="" alt="Hund" class="w-11 h-11 rounded-full object-cover bg-[#090D16] shrink-0" />
+            <div class="min-w-0">
+              <p id="invite-dog-name" class="text-sm font-extrabold text-[#F8FAFC] truncate">Bruce</p>
+              <p class="text-xs text-[#94A3B8]">Din hund · ditt team</p>
+            </div>
+          </div>
+          <span class="shrink-0 px-3 py-1 rounded-full bg-[#1F2A14] border border-[#36471E] text-[#A3E635] text-xs font-bold">Du: ägare</span>
+        </div>
+
+        <!-- Form -->
+        <form id="form-invite-admin" onsubmit="app.submitInviteAdmin(event)" class="mt-5 space-y-4">
+          <div>
+            <label for="admin-name-input" class="block text-xs font-bold text-[#CBD5E1] mb-2">Namn · valfritt</label>
+            <input id="admin-name-input" type="text" placeholder="Alex" class="w-full min-h-[52px] px-4 py-3 rounded-[16px] bg-[#131B2E] border border-[#1E293B] focus:border-[#A3E635] focus:outline-none text-[#F8FAFC] text-[15px] font-medium placeholder-[#64748B]" />
+          </div>
+
+          <div>
+            <label for="admin-email-input" class="block text-xs font-bold text-[#F8FAFC] mb-2">E-postadress *</label>
+            <input id="admin-email-input" type="email" required placeholder="alex@example.com" class="w-full min-h-[52px] px-4 py-3 rounded-[16px] bg-[#131B2E] border border-[#1E293B] focus:border-[#A3E635] focus:outline-none text-[#F8FAFC] text-[15px] font-medium placeholder-[#64748B]" />
+          </div>
+
+          <!-- Permissions Info Box -->
+          <div class="p-4 rounded-[20px] bg-[#131B2E] border border-[#1E293B] flex items-start gap-3">
+            <i data-lucide="shield-check" class="w-5 h-5 text-[#FACC15] shrink-0 mt-0.5"></i>
+            <div>
+              <p class="text-[11px] font-extrabold tracking-[0.08em] uppercase text-[#FACC15]">ADMINBEHÖRIGHET</p>
+              <p class="mt-1 text-xs leading-relaxed text-[#CBD5E1]">Kan hantera hundprofil, loggar och medlemmar i hundteamet.</p>
+            </div>
+          </div>
+
+          <button type="submit" class="w-full min-h-[56px] px-6 py-4 rounded-[20px] bg-[#A3E635] text-[#090D16] font-extrabold text-[15px] flex items-center justify-between shadow-lg shadow-[#A3E635]/15 hover:brightness-105 active:scale-[0.985] transition">
+            <span class="flex items-center gap-3">
+              <i data-lucide="mail" class="w-5 h-5 text-[#090D16]"></i>
+              <span>Skicka inbjudan</span>
+            </span>
+            <i data-lucide="arrow-right" class="w-5 h-5 text-[#090D16]"></i>
+          </button>
+        </form>
+
+        <!-- Current Team List -->
+        <div id="invite-team-list-wrap" class="mt-5">
+          <p class="text-[11px] font-bold tracking-[0.1em] uppercase text-[#94A3B8] mb-2">NUVARANDE MEDLEMMAR</p>
+          <div id="invite-team-list" class="space-y-2">
+            <!-- Rendered by JS -->
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-6 pb-2 text-center">
+        <button type="button" onclick="app.skipInviteAdmin()" class="text-sm font-bold text-[#F8FAFC] hover:text-[#A3E635] py-2 px-4 transition">
+          Gör det senare
+        </button>
+        <p class="mt-1 text-xs text-[#64748B]">Du kan när som helst ta bort en admin.</p>
+      </div>
+    </section>
+
+    <!-- ==================== PERSISTENT BOTTOM NAVIGATION ==================== -->
+    <nav id="bottom-nav" aria-label="Huvudnavigering" class="hidden fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md z-40 px-4 pb-safe pointer-events-none">
+      <div class="pointer-events-auto mb-2 p-1.5 rounded-[24px] bg-[#131B2E]/95 backdrop-blur-md border border-[#1E293B] grid grid-cols-3 gap-1 shadow-2xl shadow-black/70">
+        <button type="button" data-nav="hub" onclick="app.navigate('hub')" class="nav-btn min-h-[46px] px-3 py-2 rounded-[18px] flex items-center justify-center gap-2 text-xs font-bold transition">
+          <i data-lucide="home" class="w-4 h-4"></i>
+          <span>Hem</span>
+        </button>
+        <button type="button" data-nav="history" onclick="app.navigate('history')" class="nav-btn min-h-[46px] px-3 py-2 rounded-[18px] flex items-center justify-center gap-2 text-xs font-bold transition">
+          <i data-lucide="bar-chart-2" class="w-4 h-4"></i>
+          <span>Historik</span>
+        </button>
+        <button type="button" data-nav="profile" onclick="app.navigate('profile')" class="nav-btn min-h-[46px] px-3 py-2 rounded-[18px] flex items-center justify-center gap-2 text-xs font-bold transition">
+          <i data-lucide="dog" class="w-4 h-4"></i>
+          <span id="nav-dog-label" class="truncate max-w-[78px]">Bruce</span>
+        </button>
+      </div>
+    </nav>
+  </div>
+
+  <!-- Toast Container -->
+  <div id="toast-container" class="fixed top-4 left-1/2 -translate-x-1/2 z-[900] w-full max-w-[360px] px-4 pointer-events-none flex flex-col gap-2"></div>
+
+  <!-- Dynamic Modal Root -->
+  <div id="modal-root" class="hidden fixed inset-0 z-[800] bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4"></div>
+
+  <!-- Veterinary Print Report Container -->
+  <div id="print-report-container" class="p-6 max-w-2xl mx-auto"></div>
+
+  <!-- ==================== APPLICATION LOGIC ==================== -->
+  <script>
+    (function () {
+      'use strict';
+
+      // =========================================================================
+      // 1. EMBEDDED HIGH-FIDELITY DOG AVATARS (Zero external URLs, 100% offline)
+      // =========================================================================
+      const BRUCE_AVATAR_SVG = 'data:image/svg+xml;utf8,' + encodeURIComponent(`
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+          <defs>
+            <radialGradient id="bgB" cx="50%" cy="40%" r="70%">
+              <stop offset="0%" stop-color="#4B6840"/>
+              <stop offset="100%" stop-color="#1E301B"/>
+            </radialGradient>
+            <linearGradient id="furB" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#2D333B"/>
+              <stop offset="100%" stop-color="#14181F"/>
+            </linearGradient>
+          </defs>
+          <rect width="200" height="200" fill="url(#bgB)"/>
+          <circle cx="40" cy="40" r="24" fill="#688E56" opacity="0.35"/>
+          <circle cx="165" cy="52" r="28" fill="#688E56" opacity="0.28"/>
+          <path d="M44 200 C48 150 68 135 100 135 C132 135 152 150 156 200 Z" fill="#181D24"/>
+          <path d="M58 148 Q100 166 142 148 L138 164 Q100 182 62 164 Z" fill="#A3E635"/>
+          <rect x="92" y="160" width="16" height="10" rx="3" fill="#CBD5E1"/>
+          <path d="M52 72 C36 74 28 102 36 122 C42 130 56 120 60 100 Z" fill="#12161C"/>
+          <path d="M148 72 C164 74 172 102 164 122 C158 130 144 120 140 100 Z" fill="#12161C"/>
+          <ellipse cx="100" cy="96" rx="46" ry="48" fill="url(#furB)"/>
+          <ellipse cx="100" cy="114" rx="26" ry="22" fill="#232830"/>
+          <circle cx="80" cy="84" r="7" fill="#0B0E12"/>
+          <circle cx="78" cy="82" r="2.2" fill="#FFFFFF" opacity="0.9"/>
+          <circle cx="120" cy="84" r="7" fill="#0B0E12"/>
+          <circle cx="118" cy="82" r="2.2" fill="#FFFFFF" opacity="0.9"/>
+          <ellipse cx="100" cy="104" rx="13" ry="9" fill="#090D16"/>
+          <ellipse cx="96" cy="101" rx="4" ry="2" fill="#64748B" opacity="0.6"/>
+          <path d="M84 120 Q100 132 116 120" stroke="#090D16" stroke-width="4" fill="none" stroke-linecap="round"/>
+          <path d="M92 125 Q100 142 108 125 Z" fill="#FB7185"/>
+        </svg>
+      `);
+
+      const LUNA_AVATAR_SVG = 'data:image/svg+xml;utf8,' + encodeURIComponent(`
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+          <defs>
+            <radialGradient id="bgL" cx="50%" cy="40%" r="70%">
+              <stop offset="0%" stop-color="#537246"/>
+              <stop offset="100%" stop-color="#22351F"/>
+            </radialGradient>
+            <linearGradient id="furL" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#F3DFB4"/>
+              <stop offset="100%" stop-color="#D6B47C"/>
+            </linearGradient>
+          </defs>
+          <rect width="200" height="200" fill="url(#bgL)"/>
+          <circle cx="35" cy="48" r="25" fill="#7CA368" opacity="0.35"/>
+          <circle cx="160" cy="40" r="22" fill="#7CA368" opacity="0.28"/>
+          <path d="M44 200 C50 150 70 135 100 135 C130 135 150 150 156 200 Z" fill="#E5C690"/>
+          <path d="M60 150 Q100 166 140 150 L136 164 Q100 180 64 164 Z" fill="#F59E0B"/>
+          <path d="M52 70 C32 76 26 112 38 132 C48 138 60 120 62 96 Z" fill="#C49A5E"/>
+          <path d="M148 70 C168 76 174 112 162 132 C152 138 140 120 138 96 Z" fill="#C49A5E"/>
+          <ellipse cx="100" cy="94" rx="46" ry="47" fill="url(#furL)"/>
+          <ellipse cx="100" cy="112" rx="25" ry="22" fill="#FAF0DA"/>
+          <circle cx="80" cy="83" r="6.5" fill="#1F1610"/>
+          <circle cx="78" cy="81" r="2" fill="#FFFFFF" opacity="0.95"/>
+          <circle cx="120" cy="83" r="6.5" fill="#1F1610"/>
+          <circle cx="118" cy="81" r="2" fill="#FFFFFF" opacity="0.95"/>
+          <ellipse cx="100" cy="102" rx="12" ry="8.5" fill="#231812"/>
+          <path d="M84 117 Q100 130 116 117" stroke="#231812" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+          <path d="M92 122 Q100 138 108 122 Z" fill="#FB7185"/>
+        </svg>
+      `);
+
+      const DEFAULT_DOG_AVATAR_SVG = 'data:image/svg+xml;utf8,' + encodeURIComponent(`
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+          <rect width="200" height="200" fill="#131B2E"/>
+          <circle cx="100" cy="100" r="60" fill="#1F2A14"/>
+          <g fill="#A3E635" transform="translate(52,52) scale(4)">
+            <circle cx="11" cy="4" r="2"/><circle cx="18" cy="8" r="2"/><circle cx="20" cy="16" r="2"/>
+            <path d="M9 10a5 5 0 0 1 5 5v3.5a3.5 3.5 0 0 1-6.84 1.045Q6.52 17.48 4.46 16.84A3.5 3.5 0 0 1 5.5 10Z"/>
+          </g>
+        </svg>
+      `);
+
+      // =========================================================================
+      // 2. LOCALSTORAGE KEYS & PRE-POPULATED INITIAL DATA
+      // =========================================================================
+      const KEYS = {
+        ONBOARDED: 'bruce_onboarded',
+        DOGS: 'bruce_dogs',
+        ACTIVE_DOG_ID: 'bruce_active_dog_id',
+        TEAM: 'bruce_team',
+        ACTIVITIES: 'bruce_activities',
+      };
+
+      const HAGAPARKEN_CENTER = [59.3609, 18.0393];
+      const HAGAPARKEN_SIM_LOOP = [
+        [59.3586, 18.0348],
+        [59.3596, 18.0352],
+        [59.3607, 18.0357],
+        [59.3618, 18.0365],
+        [59.3627, 18.0375],
+        [59.3632, 18.0391],
+        [59.3629, 18.0408],
+        [59.3621, 18.0419],
+        [59.3612, 18.0406],
+        [59.3609, 18.0393],
+        [59.3601, 18.0384],
+        [59.3592, 18.0372],
+        [59.3587, 18.0359],
+      ];
+
+      function isoDaysAgo(daysAgo, hour, minute) {
+        const d = new Date();
+        d.setDate(d.getDate() - daysAgo);
+        d.setHours(hour, minute, 0, 0);
+        return d.toISOString();
+      }
+
+      function getDefaultDogs() {
+        return [
+          {
+            id: 'dog_bruce',
+            name: 'Bruce',
+            breed: 'Labrador',
+            age: 4,
+            weight: 28,
+            weightHistory: [27.6, 27.8, 27.7, 27.9, 28.0, 28.0],
+            allergy: 'Kyckling',
+            medication: 'Ingen aktuell medicinering',
+            dailyGoalKm: 5,
+            avatar: BRUCE_AVATAR_SVG,
+          },
+          {
+            id: 'dog_luna',
+            name: 'Luna',
+            breed: 'Golden retriever',
+            age: 2,
+            weight: 22,
+            weightHistory: [21.4, 21.6, 21.8, 21.9, 22.0],
+            allergy: 'Inga kända',
+            medication: 'Ingen aktuell medicinering',
+            dailyGoalKm: 5,
+            avatar: LUNA_AVATAR_SVG,
+          },
+        ];
+      }
+
+      function getDefaultTeam() {
+        return [
+          {
+            id: 'tm_alex',
+            name: 'Alex',
+            email: 'alex@example.com',
+            role: 'Admin',
+            phone: '+46701234567',
+          },
+        ];
+      }
+
+      function getDefaultActivities() {
+        return [
+          // Today (day 0) - Bruce
+          {
+            id: 'act_b_0_1',
+            dogId: 'dog_bruce',
+            type: 'walk',
+            title: 'Promenad',
+            distanceKm: 2.4,
+            durationMin: 24,
+            note: 'Hagaparken runt',
+            lat: 59.3609,
+            lng: 18.0393,
+            route: HAGAPARKEN_SIM_LOOP.slice(0, 10),
+            timestamp: isoDaysAgo(0, 8, 42),
+          },
+          {
+            id: 'act_b_0_nr1',
+            dogId: 'dog_bruce',
+            type: 'nr1',
+            title: 'Nr 1',
+            note: 'Loggat på promenaden',
+            lat: 59.3618,
+            lng: 18.0365,
+            timestamp: isoDaysAgo(0, 8, 31),
+          },
+          {
+            id: 'act_b_0_nr2',
+            dogId: 'dog_bruce',
+            type: 'nr2',
+            title: 'Nr 2',
+            note: 'Allt såg bra ut',
+            lat: 59.3607,
+            lng: 18.0357,
+            timestamp: isoDaysAgo(0, 8, 24),
+          },
+          {
+            id: 'act_b_0_tr',
+            dogId: 'dog_bruce',
+            type: 'training',
+            title: 'Träning',
+            note: 'Kontaktövning · 5 min',
+            lat: 59.3596,
+            lng: 18.0352,
+            timestamp: isoDaysAgo(0, 8, 12),
+          },
+          {
+            id: 'act_b_0_2',
+            dogId: 'dog_bruce',
+            type: 'walk',
+            title: 'Promenad',
+            distanceKm: 1.4,
+            durationMin: 16,
+            note: 'Morgonkiss i parken',
+            lat: 59.3592,
+            lng: 18.0372,
+            route: HAGAPARKEN_SIM_LOOP.slice(0, 5),
+            timestamp: isoDaysAgo(0, 6, 15),
+          },
+          // Day -1 (2 walks, 3.1 km)
+          { id: 'act_b_1_1', dogId: 'dog_bruce', type: 'walk', title: 'Promenad', distanceKm: 1.9, durationMin: 21, note: 'Kvällsrunda', lat: 59.3609, lng: 18.0393, timestamp: isoDaysAgo(1, 18, 20) },
+          { id: 'act_b_1_2', dogId: 'dog_bruce', type: 'walk', title: 'Promenad', distanceKm: 1.2, durationMin: 14, note: 'Morgonpromenad', lat: 59.3609, lng: 18.0393, timestamp: isoDaysAgo(1, 8, 10) },
+          // Day -2 (2 walks, 3.3 km)
+          { id: 'act_b_2_1', dogId: 'dog_bruce', type: 'walk', title: 'Promenad', distanceKm: 2.1, durationMin: 23, note: 'Brunnsviken', lat: 59.3609, lng: 18.0393, timestamp: isoDaysAgo(2, 17, 45) },
+          { id: 'act_b_2_2', dogId: 'dog_bruce', type: 'walk', title: 'Promenad', distanceKm: 1.2, durationMin: 15, note: 'Morgonpromenad', lat: 59.3609, lng: 18.0393, timestamp: isoDaysAgo(2, 8, 5) },
+          // Day -3 (2 walks, 4.4 km)
+          { id: 'act_b_3_1', dogId: 'dog_bruce', type: 'walk', title: 'Promenad', distanceKm: 2.9, durationMin: 32, note: 'Långpromenad', lat: 59.3609, lng: 18.0393, timestamp: isoDaysAgo(3, 16, 30) },
+          { id: 'act_b_3_2', dogId: 'dog_bruce', type: 'walk', title: 'Promenad', distanceKm: 1.5, durationMin: 18, note: 'Morgonrunda', lat: 59.3609, lng: 18.0393, timestamp: isoDaysAgo(3, 8, 15) },
+          // Day -4 (2 walks, 2.7 km)
+          { id: 'act_b_4_1', dogId: 'dog_bruce', type: 'walk', title: 'Promenad', distanceKm: 1.6, durationMin: 18, note: 'Kvällspromenad', lat: 59.3609, lng: 18.0393, timestamp: isoDaysAgo(4, 19, 10) },
+          { id: 'act_b_4_2', dogId: 'dog_bruce', type: 'walk', title: 'Promenad', distanceKm: 1.1, durationMin: 12, note: 'Snabb runda', lat: 59.3609, lng: 18.0393, timestamp: isoDaysAgo(4, 7, 50) },
+          // Day -5 (2 walks, 4.2 km)
+          { id: 'act_b_5_1', dogId: 'dog_bruce', type: 'walk', title: 'Promenad', distanceKm: 2.8, durationMin: 31, note: 'Skogsspåret', lat: 59.3609, lng: 18.0393, timestamp: isoDaysAgo(5, 17, 15) },
+          { id: 'act_b_5_2', dogId: 'dog_bruce', type: 'walk', title: 'Promenad', distanceKm: 1.4, durationMin: 16, note: 'Morgonpromenad', lat: 59.3609, lng: 18.0393, timestamp: isoDaysAgo(5, 8, 25) },
+          // Day -6 (2 walks, 3.1 km)
+          { id: 'act_b_6_1', dogId: 'dog_bruce', type: 'walk', title: 'Promenad', distanceKm: 1.8, durationMin: 20, note: 'Kvällsrunda', lat: 59.3609, lng: 18.0393, timestamp: isoDaysAgo(6, 18, 40) },
+          { id: 'act_b_6_2', dogId: 'dog_bruce', type: 'walk', title: 'Promenad', distanceKm: 1.3, durationMin: 14, note: 'Morgonrunda', lat: 59.3609, lng: 18.0393, timestamp: isoDaysAgo(6, 8, 30) },
+          // Luna preloaded activity
+          { id: 'act_l_0_1', dogId: 'dog_luna', type: 'walk', title: 'Promenad', distanceKm: 2.1, durationMin: 22, note: 'Hagaparken med Bruce', lat: 59.3609, lng: 18.0393, timestamp: isoDaysAgo(0, 8, 42) },
+          { id: 'act_l_0_nr1', dogId: 'dog_luna', type: 'nr1', title: 'Nr 1', note: 'Loggat på promenaden', lat: 59.3609, lng: 18.0393, timestamp: isoDaysAgo(0, 8, 28) },
+        ];
+      }
+
+      // =========================================================================
+      // 3. STATE MANAGEMENT & PERSISTENCE
+      // =========================================================================
+      const state = {
+        onboarded: false,
+        dogs: [],
+        activeDogId: 'dog_bruce',
+        team: [],
+        activities: [],
+        currentView: 'welcome',
+        returnView: 'hub',
+        selectedWalkDogIds: ['dog_bruce', 'dog_luna'],
+        historyDogFilter: 'all',
+        historyTypeFilter: 'all',
+        pendingDogAvatar: null,
+        addDogOnboardingMode: false,
+        inviteAdminOnboardingMode: false,
+
+        // Live Walk Runtime State
+        walk: {
+          active: false,
+          dogIds: [],
+          startedAt: null,
+          elapsedSeconds: 0,
+          distanceKm: 0,
+          coords: [],
+          lastLat: HAGAPARKEN_CENTER[0],
+          lastLng: HAGAPARKEN_CENTER[1],
+          accuracy: 5,
+          counts: {},
+          timerInterval: null,
+          watchId: null,
+          simulating: false,
+          simInterval: null,
+          simStep: 0,
+          wakeLock: null,
+        },
+
+        // Emergency Runtime State
+        emergencyDogId: 'dog_bruce',
+        emergencyTimestamp: null,
+      };
+
+      let walkMapInstance = null;
+      let walkPolylineGlow = null;
+      let walkPolylineCore = null;
+      let walkStartMarker = null;
+      let walkLiveMarker = null;
+      let emergencyMapInstance = null;
+      let emergencyPinMarker = null;
+
+      function initStorage() {
+        const rawOnboarded = localStorage.getItem(KEYS.ONBOARDED);
+        if (rawOnboarded === null) {
+          localStorage.setItem(KEYS.ONBOARDED, 'false');
+          state.onboarded = false;
+        } else {
+          state.onboarded = rawOnboarded === 'true';
+        }
+
+        try {
+          const rawDogs = localStorage.getItem(KEYS.DOGS);
+          state.dogs = rawDogs ? JSON.parse(rawDogs) : getDefaultDogs();
+          if (!rawDogs) saveDogs();
+        } catch {
+          state.dogs = getDefaultDogs();
+          saveDogs();
+        }
+
+        try {
+          const rawTeam = localStorage.getItem(KEYS.TEAM);
+          state.team = rawTeam ? JSON.parse(rawTeam) : getDefaultTeam();
+          if (!rawTeam) saveTeam();
+        } catch {
+          state.team = getDefaultTeam();
+          saveTeam();
+        }
+
+        try {
+          const rawActs = localStorage.getItem(KEYS.ACTIVITIES);
+          state.activities = rawActs ? JSON.parse(rawActs) : getDefaultActivities();
+          if (!rawActs) saveActivities();
+        } catch {
+          state.activities = getDefaultActivities();
+          saveActivities();
+        }
+
+        const savedActiveDog = localStorage.getItem(KEYS.ACTIVE_DOG_ID);
+        if (savedActiveDog && state.dogs.some(d => d.id === savedActiveDog)) {
+          state.activeDogId = savedActiveDog;
+        } else if (state.dogs.length > 0) {
+          state.activeDogId = state.dogs[0].id;
+        }
+      }
+
+      function saveDogs() {
+        localStorage.setItem(KEYS.DOGS, JSON.stringify(state.dogs));
+      }
+
+      function saveTeam() {
+        localStorage.setItem(KEYS.TEAM, JSON.stringify(state.team));
+      }
+
+      function saveActivities() {
+        localStorage.setItem(KEYS.ACTIVITIES, JSON.stringify(state.activities));
+      }
+
+      function setOnboarded(val) {
+        state.onboarded = !!val;
+        localStorage.setItem(KEYS.ONBOARDED, state.onboarded ? 'true' : 'false');
+      }
+
+      function getActiveDog() {
+        return state.dogs.find(d => d.id === state.activeDogId) || state.dogs[0] || null;
+      }
+
+      // =========================================================================
+      // 4. UTILITIES (HAVERSINE, TIME FORMATTING, TOASTS)
+      // =========================================================================
+      function haversineKm(lat1, lon1, lat2, lon2) {
+        const R = 6371;
+        const dLat = ((lat2 - lat1) * Math.PI) / 180;
+        const dLon = ((lon2 - lon1) * Math.PI) / 180;
+        const a =
+          Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+          Math.cos((lat1 * Math.PI) / 180) *
+            Math.cos((lat2 * Math.PI) / 180) *
+            Math.sin(dLon / 2) *
+            Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c;
+      }
+
+      function formatTimeHHMM(isoString) {
+        const d = new Date(isoString);
+        return d.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' });
+      }
+
+      function isSameDay(d1, d2) {
+        return (
+          d1.getFullYear() === d2.getFullYear() &&
+          d1.getMonth() === d2.getMonth() &&
+          d1.getDate() === d2.getDate()
+        );
+      }
+
+      function getDayLabelSv(isoString) {
+        const d = new Date(isoString);
+        const now = new Date();
+        const yesterday = new Date();
+        yesterday.setDate(now.getDate() - 1);
+        if (isSameDay(d, now)) return 'Idag';
+        if (isSameDay(d, yesterday)) return 'Igår';
+        return d.toLocaleDateString('sv-SE', { weekday: 'short', day: 'numeric', month: 'short' });
+      }
+
+      function escapeHtml(str) {
+        return String(str || '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+
+      function showToast(message, tone = 'lime') {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        const colors = {
+          lime: 'bg-[#131B2E] border-[#A3E635] text-[#F8FAFC]',
+          amber: 'bg-[#131B2E] border-[#FACC15] text-[#F8FAFC]',
+          orange: 'bg-[#131B2E] border-[#FB923C] text-[#F8FAFC]',
+          coral: 'bg-[#FF4D5E] border-[#FF4D5E] text-[#090D16]',
+        };
+        const dotColors = {
+          lime: 'bg-[#A3E635]',
+          amber: 'bg-[#FACC15]',
+          orange: 'bg-[#FB923C]',
+          coral: 'bg-[#090D16]',
+        };
+
+        toast.className = `pointer-events-auto px-4 py-3 rounded-2xl border shadow-2xl flex items-center gap-2.5 text-xs font-bold transition-all duration-200 ${colors[tone] || colors.lime}`;
+        toast.innerHTML = `<span class="w-2 h-2 rounded-full shrink-0 ${dotColors[tone] || dotColors.lime}"></span><span class="leading-snug">${escapeHtml(message)}</span>`;
+        container.appendChild(toast);
+
+        setTimeout(() => {
+          toast.style.opacity = '0';
+          toast.style.transform = 'translateY(-6px)';
+          setTimeout(() => toast.remove(), 220);
+        }, 2600);
+      }
+
+      function refreshIcons() {
+        if (window.lucide && typeof window.lucide.createIcons === 'function') {
+          window.lucide.createIcons();
+        }
+      }
+
+      // =========================================================================
+      // 5. NAVIGATION ENGINE
+      // =========================================================================
+      const VIEW_IDS = [
+        'welcome',
+        'hub',
+        'history',
+        'select-dogs',
+        'walk',
+        'emergency',
+        'profile',
+        'add-dog',
+        'invite-admin',
+      ];
+
+      function navigate(viewName) {
+        state.currentView = viewName;
+        VIEW_IDS.forEach(id => {
+          const el = document.getElementById(`view-${id}`);
+          if (!el) return;
+          if (id === viewName) {
+            el.classList.remove('hidden');
+            el.classList.add('flex');
+          } else {
+            el.classList.add('hidden');
+            el.classList.remove('flex');
+          }
+        });
+
+        const navEl = document.getElementById('bottom-nav');
+        const showNav = ['hub', 'history', 'profile'].includes(viewName);
+        if (showNav) {
+          navEl.classList.remove('hidden');
+          updateBottomNav();
+        } else {
+          navEl.classList.add('hidden');
+        }
+
+        if (viewName === 'hub') renderHub();
+        if (viewName === 'history') renderHistory();
+        if (viewName === 'select-dogs') renderSelectDogs();
+        if (viewName === 'walk') renderWalkScreen();
+        if (viewName === 'emergency') renderEmergencyScreen();
+        if (viewName === 'profile') renderProfile();
+
+        refreshIcons();
+        window.scrollTo({ top: 0, behavior: 'instant' });
+      }
+
+      function updateBottomNav() {
+        const dog = getActiveDog();
+        const navDogLabel = document.getElementById('nav-dog-label');
+        if (navDogLabel && dog) navDogLabel.textContent = dog.name;
+
+        document.querySelectorAll('#bottom-nav .nav-btn').forEach(btn => {
+          const target = btn.getAttribute('data-nav');
+          const active = target === state.currentView;
+          if (active) {
+            btn.className = 'nav-btn min-h-[46px] px-3 py-2 rounded-[18px] flex items-center justify-center gap-2 text-xs font-extrabold transition bg-[#222B17] text-[#A3E635]';
+          } else {
+            btn.className = 'nav-btn min-h-[46px] px-3 py-2 rounded-[18px] flex items-center justify-center gap-2 text-xs font-bold transition text-[#94A3B8] hover:text-[#F8FAFC]';
+          }
+        });
+      }
+
+      // =========================================================================
+      // 6. SCREEN RENDERERS
+      // =========================================================================
+      function renderHub() {
+        const dog = getActiveDog();
+        if (!dog) return;
+
+        document.getElementById('hub-dog-avatar').src = dog.avatar || DEFAULT_DOG_AVATAR_SVG;
+        document.getElementById('hub-dog-avatar').alt = dog.name;
+
+        const switchInd = document.getElementById('hub-dog-switch-indicator');
+        if (state.dogs.length > 1) {
+          switchInd.classList.remove('hidden');
+        } else {
+          switchInd.classList.add('hidden');
+        }
+
+        const bellBadge = document.getElementById('hub-bell-badge');
+        if (state.team.length > 0) bellBadge.classList.remove('hidden');
+        else bellBadge.classList.add('hidden');
+
+        const now = new Date();
+        const todayActs = state.activities
+          .filter(a => a.dogId === dog.id && isSameDay(new Date(a.timestamp), now))
+          .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+        const todayWalks = todayActs.filter(a => a.type === 'walk');
+        const totalTodayKm = todayWalks.reduce((sum, w) => sum + (Number(w.distanceKm) || 0), 0);
+        const goalKm = dog.dailyGoalKm || 5;
+        const pct = Math.min(100, Math.round((totalTodayKm / goalKm) * 100));
+
+        document.getElementById('hub-today-km').textContent = totalTodayKm.toFixed(1);
+        document.getElementById('hub-today-pct').textContent = `${pct} %`;
+
+        const segWrap = document.getElementById('hub-progress-segments');
+        const filledSegments = Math.round((pct / 100) * 15);
+        segWrap.innerHTML = Array.from({ length: 15 }, (_, idx) => {
+          const isFilled = idx < filledSegments;
+          return `<span class="h-2 rounded-full transition-colors ${isFilled ? 'bg-[#A3E635]' : 'bg-[#27324A]'}"></span>`;
+        }).join('');
+
+        const allDogWalks = state.activities
+          .filter(a => a.dogId === dog.id && a.type === 'walk')
+          .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+        if (allDogWalks.length > 0) {
+          const latest = allDogWalks[0];
+          document.getElementById('hub-last-walk-time').textContent = formatTimeHHMM(latest.timestamp);
+          document.getElementById('hub-last-walk-dur').textContent = `${latest.durationMin || 0} min`;
+        } else {
+          document.getElementById('hub-last-walk-time').textContent = '–';
+          document.getElementById('hub-last-walk-dur').textContent = 'Ingen idag';
+        }
+
+        document.getElementById('hub-dog-weight').textContent = dog.weight || '–';
+        document.getElementById('hub-dog-weight-status').textContent = getWeightTrendLabel(dog);
+
+        const timelineEl = document.getElementById('hub-timeline');
+        if (todayActs.length === 0) {
+          timelineEl.innerHTML = `
+            <div class="p-5 rounded-[20px] bg-[#131B2E] border border-[#1E293B] text-center">
+              <p class="text-sm font-bold text-[#F8FAFC]">Inga loggar ännu idag för ${escapeHtml(dog.name)}</p>
+              <p class="mt-1 text-xs text-[#94A3B8]">Starta en promenad eller logga manuellt under Historik.</p>
+            </div>`;
+        } else {
+          const visibleActs = todayActs.slice(0, 5);
+          timelineEl.innerHTML = visibleActs
+            .map((act, idx) => {
+              const meta = getActivityVisualMeta(act);
+              const isLast = idx === visibleActs.length - 1;
+              return `
+                <div class="relative flex items-center justify-between gap-3">
+                  ${!isLast ? '<span class="absolute left-[21px] top-11 bottom-[-18px] w-[1.5px] bg-[#1E293B]"></span>' : ''}
+                  <div class="flex items-center gap-3.5 min-w-0">
+                    <div class="w-11 h-11 rounded-full bg-[#131B2E] border border-[#1E293B] flex items-center justify-center shrink-0 z-10">
+                      ${meta.iconHtml}
+                    </div>
+                    <div class="min-w-0">
+                      <p class="text-[15px] font-bold text-[#F8FAFC] truncate">${escapeHtml(act.title || meta.label)}</p>
+                      <p class="text-xs text-[#94A3B8] truncate">${escapeHtml(meta.subtitle)}</p>
+                    </div>
+                  </div>
+                  <span class="shrink-0 text-xs font-semibold text-[#94A3B8] tabular-nums">${formatTimeHHMM(act.timestamp)}</span>
+                </div>`;
+            })
+            .join('');
+        }
+      }
+
+      function getActivityVisualMeta(act) {
+        if (act.type === 'walk') {
+          return {
+            label: 'Promenad',
+            subtitle: `${Number(act.distanceKm || 0).toFixed(1)} km · ${act.durationMin || 0} min`,
+            iconHtml: '<i data-lucide="footprints" class="w-5 h-5 text-[#A3E635]"></i>',
+          };
+        }
+        if (act.type === 'nr1') {
+          return {
+            label: 'Nr 1',
+            subtitle: act.note || 'Loggat på promenaden',
+            iconHtml: '<i data-lucide="droplet" class="w-5 h-5 text-[#FACC15]"></i>',
+          };
+        }
+        if (act.type === 'nr2') {
+          return {
+            label: 'Nr 2',
+            subtitle: act.note || 'Allt såg bra ut',
+            iconHtml: `<svg class="w-5 h-5 text-[#FB923C]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4c1.5 0 2.5 1 2.5 2.2 0 .7-.3 1.3-.8 1.8h.8c2 0 3.5 1.3 3.5 3 0 .8-.4 1.6-1 2.1 1.2.6 2 1.7 2 3 0 2-1.8 3.4-4 3.4H9c-2.2 0-4-1.4-4-3.4 0-1.3.8-2.4 2-3-.6-.5-1-1.3-1-2.1 0-1.7 1.5-3 3.5-3h.8c-.5-.5-.8-1.1-.8-1.8C9.5 5 10.5 4 12 4Z"/></svg>`,
+          };
+        }
+        if (act.type === 'training') {
+          return {
+            label: 'Träning',
+            subtitle: act.note || 'Kontaktövning · 5 min',
+            iconHtml: '<i data-lucide="sparkle" class="w-5 h-5 text-[#A3E635]"></i>',
+          };
+        }
+        if (act.type === 'weight') {
+          return {
+            label: 'Vikt loggad',
+            subtitle: `${act.weightKg || ''} kg${act.note ? ' · ' + act.note : ''}`,
+            iconHtml: '<i data-lucide="scale" class="w-5 h-5 text-[#FACC15]"></i>',
+          };
+        }
+        return {
+          label: act.title || 'Händelse',
+          subtitle: act.note || '',
+          iconHtml: '<i data-lucide="check-circle" class="w-5 h-5 text-[#A3E635]"></i>',
+        };
+      }
+
+      function renderHistory() {
+        const dogFiltersEl = document.getElementById('history-dog-filters');
+        const dogBtns = [{ id: 'all', name: 'Alla hundar' }, ...state.dogs];
+        dogFiltersEl.innerHTML = dogBtns
+          .map(d => {
+            const active = state.historyDogFilter === d.id;
+            return `<button type="button" onclick="app.setHistoryDogFilter('${d.id}')" class="shrink-0 min-h-[38px] px-4 py-1.5 rounded-full text-xs font-bold border transition ${active ? 'bg-[#A3E635] border-[#A3E635] text-[#090D16]' : 'bg-[#131B2E] border-[#1E293B] text-[#CBD5E1] hover:border-[#334155]'}">${escapeHtml(d.name)}</button>`;
+          })
+          .join('');
+
+        const typeFiltersEl = document.getElementById('history-type-filters');
+        const types = [
+          { id: 'all', label: 'Alla' },
+          { id: 'walk', label: 'Promenad' },
+          { id: 'nr1', label: 'Nr 1' },
+          { id: 'nr2', label: 'Nr 2' },
+          { id: 'training', label: 'Träning' },
+          { id: 'weight', label: 'Vikt' },
+        ];
+        typeFiltersEl.innerHTML = types
+          .map(t => {
+            const active = state.historyTypeFilter === t.id;
+            return `<button type="button" onclick="app.setHistoryTypeFilter('${t.id}')" class="shrink-0 min-h-[34px] px-3.5 py-1 rounded-full text-xs font-bold border transition ${active ? 'bg-[#222B17] border-[#A3E635]/60 text-[#A3E635]' : 'bg-[#090D16] border-[#1E293B] text-[#94A3B8] hover:text-[#F8FAFC]'}">${t.label}</button>`;
+          })
+          .join('');
+
+        const filtered = state.activities
+          .filter(a => (state.historyDogFilter === 'all' ? true : a.dogId === state.historyDogFilter))
+          .filter(a => (state.historyTypeFilter === 'all' ? true : a.type === state.historyTypeFilter))
+          .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+        const walks = filtered.filter(a => a.type === 'walk');
+        const totalKm = walks.reduce((sum, w) => sum + (Number(w.distanceKm) || 0), 0);
+
+        document.getElementById('history-stat-walks').textContent = walks.length;
+        document.getElementById('history-stat-km').textContent = totalKm.toFixed(1);
+
+        const listEl = document.getElementById('history-list');
+        if (filtered.length === 0) {
+          listEl.innerHTML = `
+            <div class="p-8 rounded-[24px] bg-[#131B2E] border border-[#1E293B] text-center">
+              <p class="text-base font-extrabold text-[#F8FAFC]">Inga loggar matchar filtret</p>
+              <p class="mt-1.5 text-xs text-[#94A3B8]">Prova att ändra filter eller tryck på + Logga för att lägga till en händelse.</p>
+            </div>`;
+          return;
+        }
+
+        const groups = {};
+        filtered.forEach(item => {
+          const d = new Date(item.timestamp);
+          const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          if (!groups[key]) groups[key] = { label: getDayLabelSv(item.timestamp), items: [] };
+          groups[key].items.push(item);
+        });
+
+        listEl.innerHTML = Object.values(groups)
+          .map(group => {
+            const rowsHtml = group.items
+              .map(act => {
+                const dog = state.dogs.find(d => d.id === act.dogId);
+                const meta = getActivityVisualMeta(act);
+                return `
+                  <div class="p-3.5 rounded-[18px] bg-[#131B2E] border border-[#1E293B] flex items-center justify-between gap-3">
+                    <div class="flex items-center gap-3 min-w-0">
+                      <div class="w-10 h-10 rounded-full bg-[#090D16] border border-[#1E293B] flex items-center justify-center shrink-0">
+                        ${meta.iconHtml}
+                      </div>
+                      <div class="min-w-0">
+                        <div class="flex items-center gap-2">
+                          <span class="text-sm font-extrabold text-[#F8FAFC] truncate">${escapeHtml(act.title || meta.label)}</span>
+                          ${dog ? `<span class="text-[11px] font-bold text-[#94A3B8]">· ${escapeHtml(dog.name)}</span>` : ''}
+                        </div>
+                        <p class="text-xs text-[#94A3B8] truncate">${escapeHtml(meta.subtitle)}</p>
+                      </div>
+                    </div>
+                    <div class="flex items-center gap-2 shrink-0">
+                      <span class="text-xs font-semibold text-[#94A3B8] tabular-nums">${formatTimeHHMM(act.timestamp)}</span>
+                      <button type="button" onclick="app.deleteActivity('${act.id}')" aria-label="Ta bort logg" class="w-8 h-8 rounded-full hover:bg-[#1E293B] flex items-center justify-center text-[#64748B] hover:text-[#FF4D5E] transition">
+                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                      </button>
+                    </div>
+                  </div>`;
+              })
+              .join('');
+
+            return `
+              <div>
+                <p class="text-[11px] font-extrabold tracking-[0.1em] uppercase text-[#94A3B8] mb-2.5">${escapeHtml(group.label)}</p>
+                <div class="space-y-2.5">${rowsHtml}</div>
+              </div>`;
+          })
+          .join('');
+      }
+
+      function renderSelectDogs() {
+        const listEl = document.getElementById('select-dogs-list');
+        state.selectedWalkDogIds = state.selectedWalkDogIds.filter(id => state.dogs.some(d => d.id === id));
+        if (state.selectedWalkDogIds.length === 0 && state.dogs.length > 0) {
+          state.selectedWalkDogIds = state.dogs.map(d => d.id);
+        }
+
+        listEl.innerHTML = state.dogs
+          .map(dog => {
+            const selected = state.selectedWalkDogIds.includes(dog.id);
+            return `
+              <button type="button" onclick="app.toggleWalkDogSelection('${dog.id}')" class="w-full p-4 rounded-[22px] bg-[#131B2E] border-2 ${selected ? 'border-[#A3E635]' : 'border-[#1E293B]'} flex items-center justify-between gap-3 text-left transition active:scale-[0.985]">
+                <div class="flex items-center gap-3.5 min-w-0">
+                  <img src="${dog.avatar || DEFAULT_DOG_AVATAR_SVG}" alt="${escapeHtml(dog.name)}" class="w-14 h-14 rounded-full object-cover bg-[#090D16] shrink-0" />
+                  <div class="min-w-0">
+                    <p class="text-[19px] font-extrabold text-[#F8FAFC] truncate">${escapeHtml(dog.name)}</p>
+                    <p class="text-xs text-[#94A3B8] truncate">${escapeHtml(dog.breed || 'Hund')}${dog.age !== '' && dog.age !== undefined ? ` · ${dog.age} år` : ''}</p>
+                  </div>
+                </div>
+                <span class="w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${selected ? 'bg-[#A3E635] text-[#090D16]' : 'border-2 border-[#334155] text-transparent'}">
+                  <i data-lucide="check" class="w-4 h-4"></i>
+                </span>
+              </button>`;
+          })
+          .join('');
+
+        const count = state.selectedWalkDogIds.length;
+        document.getElementById('select-dogs-count-badge').textContent = `${count} ${count === 1 ? 'vald' : 'valda'}`;
+        const startBtn = document.getElementById('select-dogs-start-btn');
+        startBtn.disabled = count === 0;
+        document.getElementById('select-dogs-cta-text').textContent =
+          count === 1 ? 'STARTA MED 1 HUND' : `STARTA MED ${count} HUNDAR`;
+
+        const selectedNames = state.dogs
+          .filter(d => state.selectedWalkDogIds.includes(d.id))
+          .map(d => d.name)
+          .join(' + ');
+        document.getElementById('select-dogs-summary').textContent =
+          count > 0 ? `${selectedNames} följer med` : 'Välj minst en hund';
+      }
+
+      // =========================================================================
+      // 7. ACTIVE GPS WALK ENGINE + LEAFLET MAP
+      // =========================================================================
+      function beginWalkSession(dogIds) {
+        stopAllWalkTrackers();
+
+        state.walk.active = true;
+        state.walk.dogIds = [...dogIds];
+        state.walk.startedAt = new Date();
+        state.walk.elapsedSeconds = 0;
+        state.walk.distanceKm = 0;
+        state.walk.coords = [];
+        state.walk.lastLat = HAGAPARKEN_CENTER[0];
+        state.walk.lastLng = HAGAPARKEN_CENTER[1];
+        state.walk.accuracy = 5;
+        state.walk.simulating = false;
+        state.walk.simStep = 0;
+        state.walk.counts = {};
+        dogIds.forEach(id => {
+          state.walk.counts[id] = { nr1: 0, nr2: 0, training: 0 };
+        });
+
+        requestScreenWakeLock();
+
+        state.walk.timerInterval = setInterval(() => {
+          state.walk.elapsedSeconds += 1;
+          updateWalkMetricsDOM();
+        }, 1000);
+
+        startGeolocationWatch();
+
+        navigate('walk');
+      }
+
+      async function requestScreenWakeLock() {
+        try {
+          if ('wakeLock' in navigator && !state.walk.wakeLock) {
+            state.walk.wakeLock = await navigator.wakeLock.request('screen');
+          }
+        } catch {
+          // Optional
+        }
+      }
+
+      function releaseScreenWakeLock() {
+        try {
+          if (state.walk.wakeLock) {
+            state.walk.wakeLock.release();
+            state.walk.wakeLock = null;
+          }
+        } catch {
+          state.walk.wakeLock = null;
+        }
+      }
+
+      function startGeolocationWatch() {
+        if (!('geolocation' in navigator)) {
+          document.getElementById('walk-gps-pill').textContent = 'GPS ej stödd · Tryck Simulera';
+          return;
+        }
+        state.walk.watchId = navigator.geolocation.watchPosition(
+          pos => {
+            if (state.walk.simulating) return;
+            const lat = pos.coords.latitude;
+            const lng = pos.coords.longitude;
+            const acc = Math.round(pos.coords.accuracy || 5);
+            state.walk.accuracy = acc;
+            document.getElementById('walk-gps-pill').textContent = `GPS ±${acc} m`;
+            pushWalkCoordinate(lat, lng, true);
+          },
+          () => {
+            if (!state.walk.simulating) {
+              document.getElementById('walk-gps-pill').textContent = 'GPS väntar · Tryck Simulera';
+            }
+          },
+          { enableHighAccuracy: true, maximumAge: 2000, timeout: 10000 }
+        );
+      }
+
+      function pushWalkCoordinate(lat, lng, filterNoise = true) {
+        const coords = state.walk.coords;
+        if (coords.length > 0) {
+          const prev = coords[coords.length - 1];
+          const deltaKm = haversineKm(prev[0], prev[1], lat, lng);
+          if (filterNoise) {
+            if (deltaKm < 0.003) return;
+            if (deltaKm > 0.15) return;
+          }
+          state.walk.distanceKm += deltaKm;
+        }
+
+        coords.push([lat, lng]);
+        state.walk.lastLat = lat;
+        state.walk.lastLng = lng;
+
+        updateWalkMetricsDOM();
+        updateWalkMapMarkers();
+      }
+
+      function toggleSimulatedWalk() {
+        if (state.walk.simulating) {
+          clearInterval(state.walk.simInterval);
+          state.walk.simInterval = null;
+          state.walk.simulating = false;
+          document.getElementById('walk-sim-label').textContent = 'Simulera GPS';
+          document.getElementById('walk-gps-pill').textContent = `GPS ±${state.walk.accuracy} m`;
+          showToast('GPS-simulering pausad', 'amber');
+          return;
+        }
+
+        state.walk.simulating = true;
+        document.getElementById('walk-sim-label').textContent = 'Simulerar...';
+        document.getElementById('walk-gps-pill').textContent = 'GPS ±5 m (Demo)';
+
+        if (state.walk.coords.length === 0) {
+          const p0 = HAGAPARKEN_SIM_LOOP[0];
+          state.walk.simStep = 1;
+          pushWalkCoordinate(p0[0], p0[1], false);
+          if (walkMapInstance) walkMapInstance.setView(p0, 16);
+        }
+
+        state.walk.simInterval = setInterval(() => {
+          const idx = state.walk.simStep % HAGAPARKEN_SIM_LOOP.length;
+          const pt = HAGAPARKEN_SIM_LOOP[idx];
+          state.walk.simStep += 1;
+          pushWalkCoordinate(pt[0], pt[1], false);
+        }, 900);
+
+        showToast('Simulerar promenad i Hagaparken', 'lime');
+      }
+
+      function stopAllWalkTrackers() {
+        if (state.walk.timerInterval) {
+          clearInterval(state.walk.timerInterval);
+          state.walk.timerInterval = null;
+        }
+        if (state.walk.simInterval) {
+          clearInterval(state.walk.simInterval);
+          state.walk.simInterval = null;
+        }
+        if (state.walk.watchId !== null && 'geolocation' in navigator) {
+          navigator.geolocation.clearWatch(state.walk.watchId);
+          state.walk.watchId = null;
+        }
+        state.walk.simulating = false;
+        releaseScreenWakeLock();
+      }
+
+      function renderWalkScreen() {
+        const walkingDogs = state.dogs.filter(d => state.walk.dogIds.includes(d.id));
+        const isMulti = walkingDogs.length > 1;
+        const namesLabel = walkingDogs.map(d => d.name).join(' + ');
+
+        document.getElementById('walk-subtitle').textContent = isMulti
+          ? `${namesLabel} · ${walkingDogs.length} hundar`
+          : `Du & ${namesLabel}. Ut på äventyr.`;
+
+        document.getElementById('walk-dist-label').textContent = isMulti ? 'GEMENSAM DISTANS' : 'DISTANS';
+        document.getElementById('walk-time-label').textContent = isMulti ? 'GEMENSAM TID' : 'TID I RÖRELSE';
+
+        const singlePanel = document.getElementById('walk-single-log-panel');
+        const multiPanel = document.getElementById('walk-multi-log-panel');
+
+        if (isMulti) {
+          singlePanel.classList.add('hidden');
+          multiPanel.classList.remove('hidden');
+          document.getElementById('walk-emergency-label').textContent = 'Akutläge – välj hund';
+          document.getElementById('walk-end-label').textContent =
+            walkingDogs.length === 2 ? 'Avsluta för båda hundarna' : 'Avsluta för alla hundar';
+          document.getElementById('walk-footer-note').textContent = 'En rutt. Individuella loggar per hund.';
+
+          const rowsEl = document.getElementById('walk-multi-dog-rows');
+          rowsEl.innerHTML = walkingDogs
+            .map(dog => {
+              const c = state.walk.counts[dog.id] || { nr1: 0, nr2: 0, training: 0 };
+              return `
+                <div class="py-2.5 flex items-center justify-between gap-2">
+                  <div class="flex items-center gap-2.5 min-w-0">
+                    <img src="${dog.avatar || DEFAULT_DOG_AVATAR_SVG}" alt="${escapeHtml(dog.name)}" class="w-11 h-11 rounded-full object-cover border border-[#1E293B] shrink-0" />
+                    <span class="text-[15px] font-extrabold text-[#F8FAFC] truncate">${escapeHtml(dog.name)}</span>
+                  </div>
+                  <div class="flex items-center gap-2 shrink-0">
+                    <button type="button" onclick="app.logWalkEvent('${dog.id}', 'nr1')" class="relative w-[58px] h-[58px] rounded-full bg-[#FACC15] text-[#090D16] flex flex-col items-center justify-center gap-0.5 active:scale-95 transition">
+                      <i data-lucide="droplet" class="w-4 h-4 text-[#090D16]"></i>
+                      <span class="text-[10px] font-extrabold">Nr 1</span>
+                      ${c.nr1 > 0 ? `<span class="absolute -top-1 -right-1 min-w-[20px] h-5 px-1 rounded-full bg-[#090D16] border border-[#FACC15] text-[#FACC15] text-[10px] font-extrabold flex items-center justify-center tabular-nums">${c.nr1}</span>` : ''}
+                    </button>
+                    <button type="button" onclick="app.logWalkEvent('${dog.id}', 'nr2')" class="relative w-[58px] h-[58px] rounded-full bg-[#FB923C] text-[#090D16] flex flex-col items-center justify-center gap-0.5 active:scale-95 transition">
+                      <svg class="w-4 h-4 text-[#090D16]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4c1.5 0 2.5 1 2.5 2.2 0 .7-.3 1.3-.8 1.8h.8c2 0 3.5 1.3 3.5 3 0 .8-.4 1.6-1 2.1 1.2.6 2 1.7 2 3 0 2-1.8 3.4-4 3.4H9c-2.2 0-4-1.4-4-3.4 0-1.3.8-2.4 2-3-.6-.5-1-1.3-1-2.1 0-1.7 1.5-3 3.5-3h.8c-.5-.5-.8-1.1-.8-1.8C9.5 5 10.5 4 12 4Z"/></svg>
+                      <span class="text-[10px] font-extrabold">Nr 2</span>
+                      ${c.nr2 > 0 ? `<span class="absolute -top-1 -right-1 min-w-[20px] h-5 px-1 rounded-full bg-[#090D16] border border-[#FB923C] text-[#FB923C] text-[10px] font-extrabold flex items-center justify-center tabular-nums">${c.nr2}</span>` : ''}
+                    </button>
+                    <button type="button" onclick="app.logWalkEvent('${dog.id}', 'training')" class="relative w-[58px] h-[58px] rounded-full bg-[#A3E635] text-[#090D16] flex flex-col items-center justify-center gap-0.5 active:scale-95 transition">
+                      <i data-lucide="sparkle" class="w-4 h-4 text-[#090D16]"></i>
+                      <span class="text-[10px] font-extrabold">Tränat</span>
+                      ${c.training > 0 ? `<span class="absolute -top-1 -right-1 min-w-[20px] h-5 px-1 rounded-full bg-[#090D16] border border-[#A3E635] text-[#A3E635] text-[10px] font-extrabold flex items-center justify-center tabular-nums">${c.training}</span>` : ''}
+                    </button>
+                  </div>
+                </div>`;
+            })
+            .join('');
+        } else {
+          singlePanel.classList.remove('hidden');
+          multiPanel.classList.add('hidden');
+          document.getElementById('walk-emergency-label').textContent = 'Hunden har sprungit iväg';
+          document.getElementById('walk-end-label').textContent = 'Avsluta promenad';
+          document.getElementById('walk-footer-note').textContent = 'Alla loggar sparas automatiskt';
+          updateSingleWalkBadges();
+        }
+
+        updateWalkMetricsDOM();
+        initOrRefreshWalkMap(namesLabel);
+      }
+
+      function updateSingleWalkBadges() {
+        const dogId = state.walk.dogIds[0];
+        const c = state.walk.counts[dogId] || { nr1: 0, nr2: 0, training: 0 };
+        [
+          ['single-badge-nr1', c.nr1],
+          ['single-badge-nr2', c.nr2],
+          ['single-badge-training', c.training],
+        ].forEach(([elId, val]) => {
+          const el = document.getElementById(elId);
+          if (!el) return;
+          if (val > 0) {
+            el.textContent = val;
+            el.classList.remove('hidden');
+          } else {
+            el.classList.add('hidden');
+          }
+        });
+      }
+
+      function updateWalkMetricsDOM() {
+        const mins = Math.floor(state.walk.elapsedSeconds / 60);
+        document.getElementById('walk-distance').textContent = state.walk.distanceKm.toFixed(1);
+        document.getElementById('walk-minutes').textContent = mins;
+      }
+
+      function initOrRefreshWalkMap(labelText) {
+        const center = [state.walk.lastLat, state.walk.lastLng];
+        if (!walkMapInstance) {
+          walkMapInstance = L.map('walk-map', {
+            zoomControl: false,
+            attributionControl: true,
+          }).setView(center, 16);
+
+          L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors',
+            maxZoom: 19,
+            className: 'bruce-map-tiles',
+          }).addTo(walkMapInstance);
+
+          walkPolylineGlow = L.polyline([], {
+            color: '#A3E635',
+            weight: 14,
+            opacity: 0.22,
+            lineCap: 'round',
+            lineJoin: 'round',
+          }).addTo(walkMapInstance);
+
+          walkPolylineCore = L.polyline([], {
+            color: '#A3E635',
+            weight: 5,
+            opacity: 0.95,
+            lineCap: 'round',
+            lineJoin: 'round',
+          }).addTo(walkMapInstance);
+        }
+
+        setTimeout(() => {
+          if (walkMapInstance) {
+            walkMapInstance.invalidateSize();
+            updateWalkMapMarkers(labelText);
+          }
+        }, 120);
+      }
+
+      function updateWalkMapMarkers(overrideLabel) {
+        if (!walkMapInstance) return;
+        const walkingDogs = state.dogs.filter(d => state.walk.dogIds.includes(d.id));
+        const label = overrideLabel || walkingDogs.map(d => d.name).join(' + ') || 'Bruce';
+        const coords = state.walk.coords;
+        const currentPos = [state.walk.lastLat, state.walk.lastLng];
+
+        walkPolylineGlow.setLatLngs(coords);
+        walkPolylineCore.setLatLngs(coords);
+
+        if (coords.length > 0 && !walkStartMarker) {
+          walkStartMarker = L.circleMarker(coords[0], {
+            radius: 6,
+            color: '#A3E635',
+            weight: 3,
+            fillColor: '#090D16',
+            fillOpacity: 1,
+          }).addTo(walkMapInstance);
+        } else if (coords.length > 0 && walkStartMarker) {
+          walkStartMarker.setLatLng(coords[0]);
+        } else if (coords.length === 0 && walkStartMarker) {
+          walkStartMarker.remove();
+          walkStartMarker = null;
+        }
+
+        const pillIcon = L.divIcon({
+          className: 'bruce-live-marker',
+          iconSize: [140, 56],
+          iconAnchor: [70, 44],
+          html: `
+            <div style="display:flex;flex-direction:column;align-items:center;pointer-events:none;">
+              <div style="background:#FFFFFF;color:#090D16;font-weight:800;font-size:12px;padding:4px 12px;border-radius:9999px;box-shadow:0 6px 18px rgba(0,0,0,0.45);white-space:nowrap;margin-bottom:6px;">
+                ${escapeHtml(label)}
+              </div>
+              <div style="width:20px;height:20px;border-radius:9999px;background:#A3E635;border:3.5px solid #FFFFFF;box-shadow:0 0 0 6px rgba(163,230,53,0.28);"></div>
+            </div>`,
+        });
+
+        if (!walkLiveMarker) {
+          walkLiveMarker = L.marker(currentPos, { icon: pillIcon, zIndexOffset: 500 }).addTo(walkMapInstance);
+        } else {
+          walkLiveMarker.setLatLng(currentPos);
+          walkLiveMarker.setIcon(pillIcon);
+        }
+
+        walkMapInstance.panTo(currentPos, { animate: true, duration: 0.6 });
+      }
+
+      function recenterWalkMap() {
+        if (walkMapInstance) {
+          walkMapInstance.setView([state.walk.lastLat, state.walk.lastLng], 16, { animate: true });
+        }
+      }
+
+      function logWalkEvent(explicitDogId, type) {
+        const dogId = explicitDogId || state.walk.dogIds[0];
+        const dog = state.dogs.find(d => d.id === dogId);
+        if (!dog) return;
+
+        if (!state.walk.counts[dogId]) {
+          state.walk.counts[dogId] = { nr1: 0, nr2: 0, training: 0 };
+        }
+        state.walk.counts[dogId][type] += 1;
+
+        const titles = { nr1: 'Nr 1', nr2: 'Nr 2', training: 'Träning' };
+        const notes = {
+          nr1: 'Loggat på promenaden',
+          nr2: 'Allt såg bra ut',
+          training: 'Kontaktövning · 5 min',
+        };
+        const tones = { nr1: 'amber', nr2: 'orange', training: 'lime' };
+
+        state.activities.unshift({
+          id: `act_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+          dogId,
+          type,
+          title: titles[type],
+          note: notes[type],
+          lat: state.walk.lastLat,
+          lng: state.walk.lastLng,
+          timestamp: new Date().toISOString(),
+        });
+        saveActivities();
+
+        if (state.walk.dogIds.length > 1) {
+          renderWalkScreen();
+        } else {
+          updateSingleWalkBadges();
+        }
+
+        showToast(`${titles[type]} loggad för ${dog.name}`, tones[type]);
+      }
+
+      function finishActiveWalk() {
+        const durationMin = Math.max(1, Math.round(state.walk.elapsedSeconds / 60));
+        const distanceKm = Number(state.walk.distanceKm.toFixed(2));
+        const nowIso = new Date().toISOString();
+
+        state.walk.dogIds.forEach(dogId => {
+          state.activities.unshift({
+            id: `act_walk_${Date.now()}_${dogId}`,
+            dogId,
+            type: 'walk',
+            title: 'Promenad',
+            distanceKm,
+            durationMin,
+            note: state.walk.dogIds.length > 1 ? 'Gemensam promenad' : 'GPS-promenad',
+            lat: state.walk.lastLat,
+            lng: state.walk.lastLng,
+            route: state.walk.coords.slice(),
+            timestamp: nowIso,
+          });
+        });
+
+        saveActivities();
+        stopAllWalkTrackers();
+        state.walk.active = false;
+        showToast(`Promenad sparad (${distanceKm.toFixed(1)} km · ${durationMin} min)`, 'lime');
+        navigate('hub');
+      }
+
+      function confirmLeaveWalk() {
+        if (state.walk.elapsedSeconds < 5 && state.walk.distanceKm === 0) {
+          stopAllWalkTrackers();
+          state.walk.active = false;
+          navigate('hub');
+          return;
+        }
+        openModal(`
+          <div class="p-6">
+            <h3 class="text-xl font-extrabold text-[#F8FAFC]">Avsluta promenad?</h3>
+            <p class="mt-2 text-sm text-[#94A3B8]">Vill du spara promenaden (${state.walk.distanceKm.toFixed(1)} km) innan du går tillbaka?</p>
+            <div class="mt-5 space-y-2.5">
+              <button type="button" onclick="app.closeModal(); app.finishActiveWalk();" class="w-full min-h-[50px] rounded-2xl bg-[#A3E635] text-[#090D16] font-extrabold text-sm">Spara &amp; avsluta</button>
+              <button type="button" onclick="app.closeModal(); app.discardWalk();" class="w-full min-h-[48px] rounded-2xl bg-[#131B2E] border border-[#1E293B] text-[#FF4D5E] font-bold text-sm">Avbryt utan att spara</button>
+              <button type="button" onclick="app.closeModal()" class="w-full min-h-[44px] text-sm font-semibold text-[#94A3B8]">Fortsätt gå</button>
+            </div>
+          </div>`);
+      }
+
+      function discardWalk() {
+        stopAllWalkTrackers();
+        state.walk.active = false;
+        navigate('hub');
+      }
+
+      // =========================================================================
+      // 8. SCREEN 04 · LOST DOG EMERGENCY ("HITTA BRUCE")
+      // =========================================================================
+      function triggerEmergencyFlow() {
+        if (state.walk.dogIds.length <= 1) {
+          enterEmergencyMode(state.walk.dogIds[0] || getActiveDog().id);
+          return;
+        }
+
+        const walkingDogs = state.dogs.filter(d => state.walk.dogIds.includes(d.id));
+        openModal(`
+          <div class="p-6">
+            <div class="flex items-center gap-2 text-[#FF4D5E]">
+              <i data-lucide="siren" class="w-5 h-5"></i>
+              <span class="text-xs font-extrabold uppercase tracking-wider">AKUTLÄGE</span>
+            </div>
+            <h3 class="mt-2 text-xl font-extrabold text-[#F8FAFC]">Vilken hund har sprungit iväg?</h3>
+            <p class="mt-1 text-xs text-[#94A3B8]">Välj hund för att låsa senast kända GPS-position och skapa efterlysning.</p>
+            <div class="mt-4 space-y-2.5">
+              ${walkingDogs
+                .map(
+                  d => `
+                <button type="button" onclick="app.closeModal(); app.enterEmergencyMode('${d.id}');" class="w-full p-3.5 rounded-2xl bg-[#090D16] border border-[#1E293B] hover:border-[#FF4D5E] flex items-center justify-between gap-3">
+                  <div class="flex items-center gap-3">
+                    <img src="${d.avatar || DEFAULT_DOG_AVATAR_SVG}" alt="${escapeHtml(d.name)}" class="w-11 h-11 rounded-full object-cover" />
+                    <span class="text-base font-extrabold text-[#F8FAFC]">${escapeHtml(d.name)}</span>
+                  </div>
+                  <i data-lucide="arrow-right" class="w-5 h-5 text-[#FF4D5E]"></i>
+                </button>`
+                )
+                .join('')}
+            </div>
+            <button type="button" onclick="app.closeModal()" class="w-full mt-3 min-h-[44px] text-sm font-semibold text-[#94A3B8]">Avbryt</button>
+          </div>`);
+        refreshIcons();
+      }
+
+      function enterEmergencyMode(dogId) {
+        state.emergencyDogId = dogId;
+        state.emergencyTimestamp = new Date();
+        navigate('emergency');
+      }
+
+      function renderEmergencyScreen() {
+        const dog = state.dogs.find(d => d.id === state.emergencyDogId) || getActiveDog();
+        if (!dog) return;
+
+        const lat = state.walk.lastLat || HAGAPARKEN_CENTER[0];
+        const lng = state.walk.lastLng || HAGAPARKEN_CENTER[1];
+        const timeStr = formatTimeHHMM((state.emergencyTimestamp || new Date()).toISOString());
+
+        document.getElementById('emergency-header-title').textContent = `Hitta ${dog.name}`;
+        document.getElementById('emergency-banner-title').innerHTML = `${escapeHtml(dog.name.toUpperCase())} HAR<br />SPRUNGIT IVÄG!`;
+        document.getElementById('emergency-dog-avatar').src = dog.avatar || DEFAULT_DOG_AVATAR_SVG;
+        document.getElementById('emergency-coords-text').textContent = `${lat.toFixed(4)}° N, ${lng.toFixed(4)}° E`;
+        document.getElementById('emergency-time-text').textContent = `Idag ${timeStr} · för mindre än 1 min sedan`;
+        document.getElementById('emergency-back-btn-title').textContent = `${dog.name} är tillbaka`;
+
+        const isNearHaga = haversineKm(lat, lng, HAGAPARKEN_CENTER[0], HAGAPARKEN_CENTER[1]) < 3;
+        document.getElementById('emergency-place-name').textContent = isNearHaga
+          ? 'Hagaparken, Solna'
+          : 'Senast registrerade GPS-plats';
+
+        setTimeout(() => {
+          const center = [lat, lng];
+          if (!emergencyMapInstance) {
+            emergencyMapInstance = L.map('emergency-map', {
+              zoomControl: false,
+              attributionControl: false,
+            }).setView(center, 16);
+
+            L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+              maxZoom: 19,
+              className: 'bruce-map-tiles',
+            }).addTo(emergencyMapInstance);
+          }
+
+          emergencyMapInstance.invalidateSize();
+          emergencyMapInstance.setView(center, 16);
+
+          const pinIcon = L.divIcon({
+            className: 'emergency-pin-wrap',
+            iconSize: [64, 64],
+            iconAnchor: [32, 32],
+            html: `
+              <div style="position:relative;width:64px;height:64px;display:flex;align-items:center;justify-content:center;">
+                <span class="emergency-ring" style="position:absolute;width:48px;height:48px;border-radius:9999px;background:rgba(255,77,94,0.35);border:1.5px solid rgba(255,77,94,0.65);"></span>
+                <span style="position:relative;width:36px;height:36px;border-radius:9999px;background:#FF4D5E;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 18px rgba(255,77,94,0.5);">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#090D16" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                </span>
+              </div>`,
+          });
+
+          if (!emergencyPinMarker) {
+            emergencyPinMarker = L.marker(center, { icon: pinIcon }).addTo(emergencyMapInstance);
+          } else {
+            emergencyPinMarker.setLatLng(center);
+            emergencyPinMarker.setIcon(pinIcon);
+          }
+        }, 120);
+      }
+
+      async function shareEmergencyLocation() {
+        const dog = state.dogs.find(d => d.id === state.emergencyDogId) || getActiveDog();
+        const lat = (state.walk.lastLat || HAGAPARKEN_CENTER[0]).toFixed(6);
+        const lng = (state.walk.lastLng || HAGAPARKEN_CENTER[1]).toFixed(6);
+        const queryLabel = encodeURIComponent(`Hitta ${dog.name}`);
+
+        const appleMapsUrl = `https://maps.apple.com/?ll=${lat},${lng}&q=${queryLabel}`;
+        const googleMapsUrl = `https://www.google.com/maps?q=${lat},${lng}`;
+
+        const shareText =
+          `AKUT EFTERLYSNING: ${dog.name} (${dog.breed || 'Hund'}) har sprungit iväg!\n` +
+          `Senast kända GPS-position: ${lat}, ${lng}\n\n` +
+          `Apple Maps: ${appleMapsUrl}\n` +
+          `Google Maps: ${googleMapsUrl}`;
+
+        if (navigator.share) {
+          try {
+            await navigator.share({
+              title: `Hitta ${dog.name} — Akut efterlysning`,
+              text: shareText,
+            });
+            showToast('Efterlysning delad', 'amber');
+            return;
+          } catch (err) {
+            if (err && err.name === 'AbortError') return;
+          }
+        }
+
+        try {
+          await navigator.clipboard.writeText(shareText);
+          showToast('GPS-länkar (Apple & Google Maps) kopierade till urklipp!', 'amber');
+        } catch {
+          openModal(`
+            <div class="p-6">
+              <h3 class="text-lg font-extrabold text-[#F8FAFC]">Kopiera efterlysning</h3>
+              <textarea readonly class="mt-3 w-full h-36 p-3 rounded-xl bg-[#090D16] border border-[#1E293B] text-xs font-mono text-[#CBD5E1]">${escapeHtml(shareText)}</textarea>
+              <button type="button" onclick="app.closeModal()" class="w-full mt-4 min-h-[46px] rounded-xl bg-[#FACC15] text-[#090D16] font-extrabold text-sm">Stäng</button>
+            </div>`);
+        }
+      }
+
+      function callTeamOrOwner() {
+        const contacts = state.team.filter(t => t.phone);
+        const primaryPhone = (contacts[0] && contacts[0].phone) || '+46701234567';
+        if (contacts.length <= 1) {
+          window.location.href = `tel:${primaryPhone}`;
+          showToast(`Ringer ${contacts[0] ? contacts[0].name : 'Ägare/Passare'}...`, 'lime');
+          return;
+        }
+        openModal(`
+          <div class="p-6">
+            <h3 class="text-lg font-extrabold text-[#F8FAFC]">Ring hundteamet</h3>
+            <div class="mt-4 space-y-2.5">
+              ${contacts
+                .map(
+                  c => `
+                <a href="tel:${escapeHtml(c.phone)}" class="w-full p-4 rounded-2xl bg-[#090D16] border border-[#1E293B] flex items-center justify-between text-[#F8FAFC]">
+                  <div>
+                    <p class="font-bold text-sm">${escapeHtml(c.name || c.email)}</p>
+                    <p class="text-xs text-[#94A3B8]">${escapeHtml(c.phone)}</p>
+                  </div>
+                  <i data-lucide="phone" class="w-5 h-5 text-[#A3E635]"></i>
+                </a>`
+                )
+                .join('')}
+            </div>
+            <button type="button" onclick="app.closeModal()" class="w-full mt-4 min-h-[44px] text-sm font-semibold text-[#94A3B8]">Stäng</button>
+          </div>`);
+        refreshIcons();
+      }
+
+      function exitEmergencyMode() {
+        showToast('Skönt att allt gick bra! Återgår till promenaden.', 'lime');
+        navigate('walk');
+      }
+
+      // =========================================================================
+      // 9. SCREEN 05 · PROFILE, HEALTH, SPARKLINE, 7-DAY CHART & PDF EXPORT
+      // =========================================================================
+      function getWeightTrendLabel(dog) {
+        const hist = dog.weightHistory || [];
+        if (hist.length < 2) return 'Stabil vikt';
+        const diff = hist[hist.length - 1] - hist[0];
+        if (Math.abs(diff) <= 0.6) return 'Stabil vikt';
+        return diff > 0 ? `+${diff.toFixed(1)} kg` : `${diff.toFixed(1)} kg`;
+      }
+
+      function renderProfile() {
+        const dog = getActiveDog();
+        if (!dog) return;
+
+        const switcherEl = document.getElementById('profile-dog-switcher');
+        if (state.dogs.length > 1) {
+          switcherEl.innerHTML = state.dogs
+            .map(d => {
+              const active = d.id === dog.id;
+              return `<button type="button" onclick="app.selectActiveDog('${d.id}', 'profile')" class="shrink-0 min-h-[38px] pl-1.5 pr-3.5 py-1 rounded-full flex items-center gap-2 text-xs font-bold border transition ${active ? 'bg-[#222B17] border-[#A3E635] text-[#A3E635]' : 'bg-[#131B2E] border-[#1E293B] text-[#94A3B8] hover:text-[#F8FAFC]'}">
+                <img src="${d.avatar || DEFAULT_DOG_AVATAR_SVG}" alt="" class="w-6 h-6 rounded-full object-cover" />
+                <span>${escapeHtml(d.name)}</span>
+              </button>`;
+            })
+            .join('');
+        } else {
+          switcherEl.innerHTML = '';
+        }
+
+        document.getElementById('profile-avatar').src = dog.avatar || DEFAULT_DOG_AVATAR_SVG;
+        document.getElementById('profile-name').textContent = dog.name;
+        document.getElementById('profile-meta').textContent = `${dog.breed || 'Hund'}${dog.age !== '' && dog.age !== undefined ? ` · ${dog.age} år` : ''}`;
+
+        document.getElementById('profile-weight').textContent = dog.weight || '–';
+        document.getElementById('profile-weight-trend').textContent = getWeightTrendLabel(dog);
+        renderWeightSparkline(dog.weightHistory && dog.weightHistory.length ? dog.weightHistory : [dog.weight || 20, dog.weight || 20]);
+
+        const allergyEl = document.getElementById('profile-allergy');
+        const hasAllergy = dog.allergy && dog.allergy.toLowerCase() !== 'inga kända' && dog.allergy.trim() !== '';
+        allergyEl.textContent = dog.allergy || 'Inga kända';
+        allergyEl.className = `mt-3 text-[21px] leading-tight font-extrabold truncate ${hasAllergy ? 'text-[#FACC15]' : 'text-[#A3E635]'}`;
+        document.getElementById('profile-allergy-note').textContent = hasAllergy ? 'Undvik i foder & godis' : 'Inga registrerade allergier';
+
+        document.getElementById('profile-medication').textContent = dog.medication || 'Ingen aktuell medicinering';
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const startDay = new Date(today);
+        startDay.setDate(today.getDate() - 6);
+
+        const monthNames = ['JAN', 'FEB', 'MAR', 'APR', 'MAJ', 'JUN', 'JUL', 'AUG', 'SEP', 'OKT', 'NOV', 'DEC'];
+        const rangeLabel =
+          startDay.getMonth() === today.getMonth()
+            ? `${startDay.getDate()}–${today.getDate()} ${monthNames[today.getMonth()]}`
+            : `${startDay.getDate()} ${monthNames[startDay.getMonth()]}–${today.getDate()} ${monthNames[today.getMonth()]}`;
+        document.getElementById('profile-week-range').textContent = rangeLabel;
+
+        const dayLettersSv = ['S', 'M', 'T', 'O', 'T', 'F', 'L'];
+        const buckets = [];
+        for (let i = 6; i >= 0; i--) {
+          const d = new Date(today);
+          d.setDate(today.getDate() - i);
+          const dayWalks = state.activities.filter(
+            a => a.dogId === dog.id && a.type === 'walk' && isSameDay(new Date(a.timestamp), d)
+          );
+          const km = dayWalks.reduce((s, w) => s + (Number(w.distanceKm) || 0), 0);
+          buckets.push({
+            letter: dayLettersSv[d.getDay()],
+            km,
+            walksCount: dayWalks.length,
+            isToday: i === 0,
+          });
+        }
+
+        const total7Km = buckets.reduce((s, b) => s + b.km, 0);
+        const total7Walks = buckets.reduce((s, b) => s + b.walksCount, 0);
+        document.getElementById('profile-week-km').textContent = total7Km.toFixed(1);
+        document.getElementById('profile-week-walks').textContent = total7Walks;
+
+        const maxKm = Math.max(1, ...buckets.map(b => b.km));
+        const barsEl = document.getElementById('profile-week-bars');
+        barsEl.innerHTML = buckets
+          .map(b => {
+            const hPct = b.km > 0 ? Math.max(22, Math.round((b.km / maxKm) * 100)) : 12;
+            const barColor = b.isToday ? 'bg-[#FACC15]' : b.km > 0 ? 'bg-[#A3E635]' : 'bg-[#27324A]';
+            const textColor = b.isToday ? 'text-[#FACC15] font-extrabold' : 'text-[#94A3B8] font-semibold';
+            return `
+              <div class="flex flex-col items-center justify-end h-full gap-2" title="${b.km.toFixed(1)} km">
+                <div class="w-full flex-1 flex items-end">
+                  <div class="w-full rounded-[7px] ${barColor} transition-all" style="height:${hPct}%"></div>
+                </div>
+                <span class="text-[11px] ${textColor}">${b.letter}</span>
+              </div>`;
+          })
+          .join('');
+
+        const teamCount = state.team.length;
+        document.getElementById('profile-team-summary').textContent =
+          teamCount === 1 ? '1 admin inbjuden · Hantera team' : `${teamCount} admins · Hantera team`;
+      }
+
+      function renderWeightSparkline(points) {
+        const svg = document.getElementById('profile-weight-sparkline');
+        if (!svg) return;
+        const vals = points.slice(-7);
+        const min = Math.min(...vals) - 0.3;
+        const max = Math.max(...vals) + 0.3;
+        const span = Math.max(0.5, max - min);
+
+        const coords = vals.map((v, i) => {
+          const x = vals.length === 1 ? 32 : (i / (vals.length - 1)) * 60 + 2;
+          const y = 24 - ((v - min) / span) * 20;
+          return `${x.toFixed(1)},${y.toFixed(1)}`;
+        });
+
+        svg.innerHTML = `<polyline fill="none" stroke="#A3E635" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" points="${coords.join(' ')}" />`;
+      }
+
+      function exportVetReport() {
+        const dog = getActiveDog();
+        if (!dog) return;
+        const dogActs = state.activities
+          .filter(a => a.dogId === dog.id)
+          .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        const recentWalks = dogActs.filter(a => a.type === 'walk').slice(0, 10);
+        const healthEvents = dogActs.filter(a => a.type !== 'walk').slice(0, 15);
+        const total7Km = document.getElementById('profile-week-km').textContent;
+        const total7Walks = document.getElementById('profile-week-walks').textContent;
+
+        const container = document.getElementById('print-report-container');
+        container.innerHTML = `
+          <div style="border-bottom:2px solid #0F172A;padding-bottom:14px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:flex-end;">
+            <div>
+              <p style="font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#475569;margin:0;">BRUCE · VETERINÄR- &amp; HÄLSORAPPORT</p>
+              <h1 style="font-size:28px;font-weight:800;margin:4px 0 0 0;">${escapeHtml(dog.name)}</h1>
+              <p style="font-size:14px;color:#334155;margin:4px 0 0 0;">${escapeHtml(dog.breed || 'Hund')} · ${dog.age || '–'} år · ${dog.weight || '–'} kg</p>
+            </div>
+            <p style="font-size:12px;color:#475569;margin:0;">Utskriven ${new Date().toLocaleDateString('sv-SE')}</p>
+          </div>
+
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:22px;">
+            <div style="border:1px solid #CBD5E1;border-radius:10px;padding:12px;">
+              <p style="font-size:11px;font-weight:700;color:#475569;margin:0;">VIKT</p>
+              <p style="font-size:20px;font-weight:800;margin:4px 0 0 0;">${dog.weight || '–'} kg (${escapeHtml(getWeightTrendLabel(dog))})</p>
+            </div>
+            <div style="border:1px solid #CBD5E1;border-radius:10px;padding:12px;">
+              <p style="font-size:11px;font-weight:700;color:#475569;margin:0;">ALLERGIER</p>
+              <p style="font-size:18px;font-weight:800;margin:4px 0 0 0;">${escapeHtml(dog.allergy || 'Inga kända')}</p>
+            </div>
+            <div style="border:1px solid #CBD5E1;border-radius:10px;padding:12px;">
+              <p style="font-size:11px;font-weight:700;color:#475569;margin:0;">SENASTE 7 DAGARNA</p>
+              <p style="font-size:18px;font-weight:800;margin:4px 0 0 0;">${total7Km} km · ${total7Walks} promenader</p>
+            </div>
+          </div>
+
+          <div style="border:1px solid #CBD5E1;border-radius:10px;padding:12px;margin-bottom:22px;">
+            <p style="font-size:11px;font-weight:700;color:#475569;margin:0;">MEDICINERING</p>
+            <p style="font-size:15px;font-weight:600;margin:4px 0 0 0;">${escapeHtml(dog.medication || 'Ingen aktuell medicinering')}</p>
+          </div>
+
+          <h2 style="font-size:16px;font-weight:800;margin:0 0 8px 0;">Senaste promenader</h2>
+          <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:20px;">
+            <thead>
+              <tr style="border-bottom:1px solid #94A3B8;text-align:left;">
+                <th style="padding:6px 4px;">Datum</th>
+                <th style="padding:6px 4px;">Tid</th>
+                <th style="padding:6px 4px;">Distans</th>
+                <th style="padding:6px 4px;">Längd</th>
+                <th style="padding:6px 4px;">Anteckning</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${recentWalks
+                .map(
+                  w => `
+                <tr style="border-bottom:1px solid #E2E8F0;">
+                  <td style="padding:6px 4px;">${new Date(w.timestamp).toLocaleDateString('sv-SE')}</td>
+                  <td style="padding:6px 4px;">${formatTimeHHMM(w.timestamp)}</td>
+                  <td style="padding:6px 4px;">${Number(w.distanceKm || 0).toFixed(1)} km</td>
+                  <td style="padding:6px 4px;">${w.durationMin || 0} min</td>
+                  <td style="padding:6px 4px;">${escapeHtml(w.note || '')}</td>
+                </tr>`
+                )
+                .join('')}
+            </tbody>
+          </table>
+
+          <h2 style="font-size:16px;font-weight:800;margin:0 0 8px 0;">Toalett, träning &amp; viktloggar</h2>
+          <table style="width:100%;border-collapse:collapse;font-size:12px;">
+            <thead>
+              <tr style="border-bottom:1px solid #94A3B8;text-align:left;">
+                <th style="padding:6px 4px;">Datum</th>
+                <th style="padding:6px 4px;">Tid</th>
+                <th style="padding:6px 4px;">Händelse</th>
+                <th style="padding:6px 4px;">Detaljer</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${healthEvents
+                .map(
+                  e => `
+                <tr style="border-bottom:1px solid #E2E8F0;">
+                  <td style="padding:6px 4px;">${new Date(e.timestamp).toLocaleDateString('sv-SE')}</td>
+                  <td style="padding:6px 4px;">${formatTimeHHMM(e.timestamp)}</td>
+                  <td style="padding:6px 4px;">${escapeHtml(e.title || e.type)}</td>
+                  <td style="padding:6px 4px;">${escapeHtml(e.note || (e.weightKg ? e.weightKg + ' kg' : ''))}</td>
+                </tr>`
+                )
+                .join('')}
+            </tbody>
+          </table>
+        `;
+
+        window.print();
+      }
+
+      // =========================================================================
+      // 10. FORMS: SCREEN 06 (ADD DOG) & SCREEN 07 (INVITE ADMIN)
+      // =========================================================================
+      function openAddDog(isOnboarding, returnView = 'hub') {
+        state.addDogOnboardingMode = !!isOnboarding;
+        state.returnView = returnView;
+        state.pendingDogAvatar = null;
+
+        document.getElementById('form-add-dog').reset();
+        resetPhotoPreviewUI();
+
+        if (isOnboarding) {
+          document.getElementById('add-dog-header').textContent = 'Din första hundprofil';
+          document.getElementById('add-dog-kicker').textContent = 'STEG 1 AV 2';
+          document.getElementById('add-dog-title').innerHTML = 'Vem är din<br />bästa vän?';
+          document.getElementById('add-dog-subtitle').textContent = 'Börja med det viktigaste. Du kan lägga till fler detaljer när ni är redo.';
+          document.getElementById('add-dog-submit-label').textContent = 'Spara & bjud in admin';
+          document.getElementById('add-dog-skip-btn').textContent = 'Hoppa över för nu';
+          document.getElementById('add-dog-footer-note').textContent = 'Bara namnet behövs för att komma igång.';
+        } else {
+          document.getElementById('add-dog-header').textContent = 'Lägg till hund';
+          document.getElementById('add-dog-kicker').textContent = 'PLATS FÖR FLER TASSAR';
+          document.getElementById('add-dog-title').innerHTML = 'En till i<br />gänget.';
+          document.getElementById('add-dog-subtitle').textContent = 'Lägg till nästa hund och välj sedan vilka som följer med på promenaden.';
+          document.getElementById('add-dog-submit-label').textContent = 'Spara hund';
+          document.getElementById('add-dog-skip-btn').textContent = 'Avbryt';
+          document.getElementById('add-dog-footer-note').textContent = 'Den nya hunden får en egen profil och egen historik.';
+        }
+
+        navigate('add-dog');
+      }
+
+      function resetPhotoPreviewUI() {
+        const wrap = document.getElementById('dog-photo-preview-wrap');
+        wrap.innerHTML = '<i data-lucide="camera" class="w-6 h-6 text-[#A3E635]"></i>';
+        document.getElementById('dog-photo-title').textContent = 'Lägg till en bild';
+        document.getElementById('dog-photo-desc').textContent = 'Valfritt · gör profilen personlig';
+        document.getElementById('dog-photo-action').innerHTML = '<i data-lucide="plus" class="w-5 h-5"></i>';
+        refreshIcons();
+      }
+
+      function handleDogPhotoUpload(event) {
+        const file = event.target.files && event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          const img = new Image();
+          img.onload = function () {
+            const canvas = document.createElement('canvas');
+            const size = 240;
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            const minSide = Math.min(img.width, img.height);
+            const sx = (img.width - minSide) / 2;
+            const sy = (img.height - minSide) / 2;
+            ctx.drawImage(img, sx, sy, minSide, minSide, 0, 0, size, size);
+            const base64 = canvas.toDataURL('image/jpeg', 0.82);
+            state.pendingDogAvatar = base64;
+
+            const wrap = document.getElementById('dog-photo-preview-wrap');
+            wrap.innerHTML = `<img src="${base64}" alt="Förhandsvisning" class="w-full h-full object-cover" />`;
+            document.getElementById('dog-photo-title').textContent = 'Profilbild vald';
+            document.getElementById('dog-photo-desc').textContent = 'Bild tillagd · tryck för att byta';
+            document.getElementById('dog-photo-action').textContent = 'Byt';
+          };
+          img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      }
+
+      function submitAddDog(event) {
+        event.preventDefault();
+        const name = document.getElementById('dog-name-input').value.trim();
+        if (!name) {
+          showToast('Ange hundens namn', 'coral');
+          return;
+        }
+        const breed = document.getElementById('dog-breed-input').value || 'Hund';
+        const ageRaw = document.getElementById('dog-age-input').value;
+        const weightRaw = document.getElementById('dog-weight-input').value;
+        const weightVal = weightRaw ? Number(weightRaw) : 20;
+
+        const newDog = {
+          id: `dog_${Date.now()}`,
+          name,
+          breed,
+          age: ageRaw !== '' ? Number(ageRaw) : '',
+          weight: weightVal,
+          weightHistory: [weightVal],
+          allergy: 'Inga kända',
+          medication: 'Ingen aktuell medicinering',
+          dailyGoalKm: 5,
+          avatar: state.pendingDogAvatar || DEFAULT_DOG_AVATAR_SVG,
+        };
+
+        state.dogs.push(newDog);
+        saveDogs();
+        state.activeDogId = newDog.id;
+        localStorage.setItem(KEYS.ACTIVE_DOG_ID, newDog.id);
+        if (!state.selectedWalkDogIds.includes(newDog.id)) {
+          state.selectedWalkDogIds.push(newDog.id);
+        }
+
+        showToast(`${name} har lagts till!`, 'lime');
+
+        if (state.addDogOnboardingMode) {
+          openAddAdmin(true);
+        } else {
+          navigate(state.returnView || 'hub');
+        }
+      }
+
+      function skipAddDog() {
+        if (state.addDogOnboardingMode) {
+          setOnboarded(true);
+          navigate('hub');
+        } else {
+          navigate(state.returnView || 'hub');
+        }
+      }
+
+      function openAddAdmin(isOnboarding, returnView = 'hub') {
+        state.inviteAdminOnboardingMode = !!isOnboarding;
+        state.returnView = returnView;
+        document.getElementById('form-invite-admin').reset();
+
+        const dog = getActiveDog();
+        if (dog) {
+          document.getElementById('invite-dog-avatar').src = dog.avatar || DEFAULT_DOG_AVATAR_SVG;
+          document.getElementById('invite-dog-name').textContent = dog.name;
+          document.getElementById('invite-admin-subtitle').textContent = `Bjud in någon som hjälper till med ${dog.name}. Du väljer vem som får tillgång.`;
+        }
+
+        document.getElementById('invite-admin-kicker').textContent = isOnboarding
+          ? 'STEG 2 AV 2 · VALFRITT'
+          : 'HANTERA HUNDTEAM';
+
+        renderInviteTeamList();
+        navigate('invite-admin');
+      }
+
+      function renderInviteTeamList() {
+        const listEl = document.getElementById('invite-team-list');
+        const wrapEl = document.getElementById('invite-team-list-wrap');
+        if (state.team.length === 0) {
+          wrapEl.classList.add('hidden');
+          return;
+        }
+        wrapEl.classList.remove('hidden');
+        listEl.innerHTML = state.team
+          .map(
+            m => `
+          <div class="p-3 rounded-[16px] bg-[#131B2E] border border-[#1E293B] flex items-center justify-between gap-3">
+            <div class="min-w-0">
+              <p class="text-sm font-bold text-[#F8FAFC] truncate">${escapeHtml(m.name || 'Admin')}</p>
+              <p class="text-xs text-[#94A3B8] truncate">${escapeHtml(m.email)}</p>
+            </div>
+            <button type="button" onclick="app.removeAdmin('${m.id}')" class="px-3 py-1.5 rounded-full bg-[#090D16] border border-[#1E293B] text-[11px] font-bold text-[#FF4D5E] hover:border-[#FF4D5E] transition">
+              Ta bort
+            </button>
+          </div>`
+          )
+          .join('');
+      }
+
+      function submitInviteAdmin(event) {
+        event.preventDefault();
+        const name = document.getElementById('admin-name-input').value.trim();
+        const email = document.getElementById('admin-email-input').value.trim();
+        if (!email || !email.includes('@')) {
+          showToast('Ange en giltig e-postadress', 'coral');
+          return;
+        }
+
+        state.team.push({
+          id: `tm_${Date.now()}`,
+          name: name || email.split('@')[0],
+          email,
+          role: 'Admin',
+          phone: '+46701234567',
+        });
+        saveTeam();
+        setOnboarded(true);
+        showToast(`Inbjudan skickad till ${name || email}`, 'lime');
+
+        if (state.inviteAdminOnboardingMode) {
+          navigate('hub');
+        } else {
+          renderInviteTeamList();
+          document.getElementById('form-invite-admin').reset();
+        }
+      }
+
+      function removeAdmin(id) {
+        state.team = state.team.filter(t => t.id !== id);
+        saveTeam();
+        renderInviteTeamList();
+        showToast('Admin borttagen från hundteamet', 'amber');
+      }
+
+      function skipInviteAdmin() {
+        setOnboarded(true);
+        navigate(state.inviteAdminOnboardingMode ? 'hub' : state.returnView || 'hub');
+      }
+
+      function goBackFromForm() {
+        if (!state.onboarded) {
+          navigate('welcome');
+        } else {
+          navigate(state.returnView || 'hub');
+        }
+      }
+
+      // =========================================================================
+      // 11. MODALS (EDIT PROFILE, MANUAL LOG, DOG SWITCHER, NOTIFICATIONS)
+      // =========================================================================
+      function openModal(html) {
+        const root = document.getElementById('modal-root');
+        root.innerHTML = `<div class="w-full max-w-md bg-[#131B2E] border-t sm:border border-[#1E293B] rounded-t-[28px] sm:rounded-[28px] shadow-2xl max-h-[90vh] overflow-y-auto">${html}</div>`;
+        root.classList.remove('hidden');
+        root.onclick = e => {
+          if (e.target === root) closeModal();
+        };
+        refreshIcons();
+      }
+
+      function closeModal() {
+        const root = document.getElementById('modal-root');
+        root.classList.add('hidden');
+        root.innerHTML = '';
+      }
+
+      function openDogSwitcherModal() {
+        openModal(`
+          <div class="p-6">
+            <div class="flex items-center justify-between">
+              <h3 class="text-xl font-extrabold text-[#F8FAFC]">Välj aktiv hund</h3>
+              <button type="button" onclick="app.closeModal()" class="w-9 h-9 rounded-full bg-[#090D16] flex items-center justify-center text-[#94A3B8]">
+                <i data-lucide="x" class="w-4 h-4"></i>
+              </button>
+            </div>
+            <div class="mt-4 space-y-2.5">
+              ${state.dogs
+                .map(d => {
+                  const active = d.id === state.activeDogId;
+                  return `
+                    <button type="button" onclick="app.selectActiveDog('${d.id}'); app.closeModal();" class="w-full p-3.5 rounded-2xl bg-[#090D16] border ${active ? 'border-[#A3E635]' : 'border-[#1E293B]'} flex items-center justify-between gap-3">
+                      <div class="flex items-center gap-3">
+                        <img src="${d.avatar || DEFAULT_DOG_AVATAR_SVG}" alt="${escapeHtml(d.name)}" class="w-12 h-12 rounded-full object-cover" />
+                        <div class="text-left">
+                          <p class="font-extrabold text-[#F8FAFC]">${escapeHtml(d.name)}</p>
+                          <p class="text-xs text-[#94A3B8]">${escapeHtml(d.breed || 'Hund')} · ${d.weight || '–'} kg</p>
+                        </div>
+                      </div>
+                      ${active ? '<i data-lucide="check-circle-2" class="w-5 h-5 text-[#A3E635]"></i>' : ''}
+                    </button>`;
+                })
+                .join('')}
+            </div>
+            <button type="button" onclick="app.closeModal(); app.openAddDog(false, 'hub');" class="w-full mt-4 min-h-[48px] rounded-2xl border border-[#1E293B] text-[#A3E635] font-bold text-sm flex items-center justify-center gap-2">
+              <i data-lucide="plus" class="w-4 h-4"></i>
+              <span>Lägg till en till hund</span>
+            </button>
+          </div>`);
+      }
+
+      function selectActiveDog(dogId, stayOnView) {
+        state.activeDogId = dogId;
+        localStorage.setItem(KEYS.ACTIVE_DOG_ID, dogId);
+        updateBottomNav();
+        if (stayOnView === 'profile' || state.currentView === 'profile') renderProfile();
+        else renderHub();
+        refreshIcons();
+      }
+
+      function openNotificationsModal() {
+        openModal(`
+          <div class="p-6">
+            <div class="flex items-center justify-between">
+              <h3 class="text-xl font-extrabold text-[#F8FAFC]">Hundteam &amp; påminnelser</h3>
+              <button type="button" onclick="app.closeModal()" class="w-9 h-9 rounded-full bg-[#090D16] flex items-center justify-center text-[#94A3B8]">
+                <i data-lucide="x" class="w-4 h-4"></i>
+              </button>
+            </div>
+            <div class="mt-4 space-y-3">
+              <div class="p-4 rounded-2xl bg-[#090D16] border border-[#1E293B] flex items-start gap-3">
+                <i data-lucide="users" class="w-5 h-5 text-[#A3E635] shrink-0 mt-0.5"></i>
+                <div>
+                  <p class="text-sm font-bold text-[#F8FAFC]">Ditt hundteam (${state.team.length} admins)</p>
+                  <p class="mt-1 text-xs text-[#94A3B8]">${state.team.map(t => escapeHtml(t.name || t.email)).join(', ') || 'Inga inbjudna ännu'}</p>
+                </div>
+              </div>
+              <div class="p-4 rounded-2xl bg-[#090D16] border border-[#1E293B] flex items-start gap-3">
+                <i data-lucide="sparkles" class="w-5 h-5 text-[#FACC15] shrink-0 mt-0.5"></i>
+                <div>
+                  <p class="text-sm font-bold text-[#F8FAFC]">Allt sparas lokalt på enheten</p>
+                  <p class="mt-1 text-xs text-[#94A3B8]">Promenader, hälsoanteckningar och teammedlemmar sparas automatiskt.</p>
+                </div>
+              </div>
+            </div>
+            <button type="button" onclick="app.closeModal(); app.openAddAdmin(false, 'hub');" class="w-full mt-4 min-h-[48px] rounded-2xl bg-[#A3E635] text-[#090D16] font-extrabold text-sm">Hantera hundteam</button>
+          </div>`);
+      }
+
+      function openEditProfileModal(focusField) {
+        const dog = getActiveDog();
+        if (!dog) return;
+        openModal(`
+          <form onsubmit="app.saveProfileEdits(event)" class="p-6 space-y-4">
+            <div class="flex items-center justify-between">
+              <h3 class="text-xl font-extrabold text-[#F8FAFC]">Redigera ${escapeHtml(dog.name)}</h3>
+              <button type="button" onclick="app.closeModal()" class="w-9 h-9 rounded-full bg-[#090D16] flex items-center justify-center text-[#94A3B8]">
+                <i data-lucide="x" class="w-4 h-4"></i>
+              </button>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-[#CBD5E1] mb-1.5">Namn</label>
+              <input id="edit-dog-name" type="text" required value="${escapeHtml(dog.name)}" class="w-full min-h-[46px] px-3.5 rounded-xl bg-[#090D16] border border-[#1E293B] focus:border-[#A3E635] focus:outline-none text-sm text-[#F8FAFC]" />
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-bold text-[#CBD5E1] mb-1.5">Vikt (kg)</label>
+                <input id="edit-dog-weight" type="number" step="0.1" min="0.5" value="${dog.weight || ''}" class="w-full min-h-[46px] px-3.5 rounded-xl bg-[#090D16] border border-[#1E293B] focus:border-[#A3E635] focus:outline-none text-sm text-[#F8FAFC] tabular-nums" />
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-[#CBD5E1] mb-1.5">Ålder (år)</label>
+                <input id="edit-dog-age" type="number" min="0" max="30" value="${dog.age !== undefined ? dog.age : ''}" class="w-full min-h-[46px] px-3.5 rounded-xl bg-[#090D16] border border-[#1E293B] focus:border-[#A3E635] focus:outline-none text-sm text-[#F8FAFC] tabular-nums" />
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-[#CBD5E1] mb-1.5">Allergier</label>
+              <input id="edit-dog-allergy" type="text" value="${escapeHtml(dog.allergy || '')}" placeholder="T.ex. Kyckling eller Inga kända" class="w-full min-h-[46px] px-3.5 rounded-xl bg-[#090D16] border border-[#1E293B] focus:border-[#A3E635] focus:outline-none text-sm text-[#F8FAFC]" />
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-[#CBD5E1] mb-1.5">Medicinering</label>
+              <input id="edit-dog-meds" type="text" value="${escapeHtml(dog.medication || '')}" placeholder="Ingen aktuell medicinering" class="w-full min-h-[46px] px-3.5 rounded-xl bg-[#090D16] border border-[#1E293B] focus:border-[#A3E635] focus:outline-none text-sm text-[#F8FAFC]" />
+            </div>
+            <button type="submit" class="w-full min-h-[50px] rounded-2xl bg-[#A3E635] text-[#090D16] font-extrabold text-sm">Spara ändringar</button>
+          </form>`);
+
+        if (focusField === 'weight') setTimeout(() => document.getElementById('edit-dog-weight')?.focus(), 80);
+        if (focusField === 'allergy') setTimeout(() => document.getElementById('edit-dog-allergy')?.focus(), 80);
+        if (focusField === 'medication') setTimeout(() => document.getElementById('edit-dog-meds')?.focus(), 80);
+      }
+
+      function saveProfileEdits(event) {
+        event.preventDefault();
+        const dog = getActiveDog();
+        if (!dog) return;
+
+        const newName = document.getElementById('edit-dog-name').value.trim();
+        const newWeight = Number(document.getElementById('edit-dog-weight').value);
+        const newAge = document.getElementById('edit-dog-age').value;
+        const newAllergy = document.getElementById('edit-dog-allergy').value.trim();
+        const newMeds = document.getElementById('edit-dog-meds').value.trim();
+
+        if (newName) dog.name = newName;
+        if (newAge !== '') dog.age = Number(newAge);
+        dog.allergy = newAllergy || 'Inga kända';
+        dog.medication = newMeds || 'Ingen aktuell medicinering';
+
+        if (!isNaN(newWeight) && newWeight > 0 && newWeight !== dog.weight) {
+          dog.weight = newWeight;
+          dog.weightHistory = [...(dog.weightHistory || []), newWeight].slice(-12);
+          state.activities.unshift({
+            id: `act_wt_${Date.now()}`,
+            dogId: dog.id,
+            type: 'weight',
+            title: 'Vikt uppdaterad',
+            weightKg: newWeight,
+            note: 'Profiluppdatering',
+            timestamp: new Date().toISOString(),
+          });
+          saveActivities();
+        }
+
+        saveDogs();
+        closeModal();
+        renderProfile();
+        updateBottomNav();
+        showToast('Profil uppdaterad', 'lime');
+      }
+
+      function openManualLogModal() {
+        const dogOptions = state.dogs
+          .map(d => `<option value="${d.id}" ${d.id === state.activeDogId ? 'selected' : ''}>${escapeHtml(d.name)}</option>`)
+          .join('');
+
+        openModal(`
+          <form onsubmit="app.submitManualLog(event)" class="p-6 space-y-4">
+            <div class="flex items-center justify-between">
+              <h3 class="text-xl font-extrabold text-[#F8FAFC]">Logga händelse</h3>
+              <button type="button" onclick="app.closeModal()" class="w-9 h-9 rounded-full bg-[#090D16] flex items-center justify-center text-[#94A3B8]">
+                <i data-lucide="x" class="w-4 h-4"></i>
+              </button>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-[#CBD5E1] mb-1.5">Hund</label>
+              <select id="manual-log-dog" class="w-full min-h-[46px] px-3.5 rounded-xl bg-[#090D16] border border-[#1E293B] text-sm text-[#F8FAFC]">${dogOptions}</select>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-[#CBD5E1] mb-1.5">Typ av händelse</label>
+              <select id="manual-log-type" onchange="app.toggleManualLogFields()" class="w-full min-h-[46px] px-3.5 rounded-xl bg-[#090D16] border border-[#1E293B] text-sm text-[#F8FAFC]">
+                <option value="weight">Vikt (kg)</option>
+                <option value="nr1">Nr 1</option>
+                <option value="nr2">Nr 2</option>
+                <option value="training">Träning</option>
+                <option value="walk">Manuell promenad</option>
+              </select>
+            </div>
+            <div id="manual-weight-wrap">
+              <label class="block text-xs font-bold text-[#CBD5E1] mb-1.5">Vikt (kg)</label>
+              <input id="manual-log-weight" type="number" step="0.1" min="0.5" value="${getActiveDog()?.weight || 28}" class="w-full min-h-[46px] px-3.5 rounded-xl bg-[#090D16] border border-[#1E293B] text-sm text-[#F8FAFC] tabular-nums" />
+            </div>
+            <div id="manual-walk-wrap" class="hidden grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-bold text-[#CBD5E1] mb-1.5">Distans (km)</label>
+                <input id="manual-log-km" type="number" step="0.1" min="0.1" value="1.5" class="w-full min-h-[46px] px-3.5 rounded-xl bg-[#090D16] border border-[#1E293B] text-sm text-[#F8FAFC] tabular-nums" />
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-[#CBD5E1] mb-1.5">Tid (min)</label>
+                <input id="manual-log-min" type="number" min="1" value="18" class="w-full min-h-[46px] px-3.5 rounded-xl bg-[#090D16] border border-[#1E293B] text-sm text-[#F8FAFC] tabular-nums" />
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-[#CBD5E1] mb-1.5">Anteckning · valfritt</label>
+              <input id="manual-log-note" type="text" placeholder="T.ex. Bra energi" class="w-full min-h-[46px] px-3.5 rounded-xl bg-[#090D16] border border-[#1E293B] text-sm text-[#F8FAFC]" />
+            </div>
+            <button type="submit" class="w-full min-h-[50px] rounded-2xl bg-[#A3E635] text-[#090D16] font-extrabold text-sm">Spara i historiken</button>
+          </form>`);
+      }
+
+      function toggleManualLogFields() {
+        const type = document.getElementById('manual-log-type').value;
+        document.getElementById('manual-weight-wrap').classList.toggle('hidden', type !== 'weight');
+        document.getElementById('manual-walk-wrap').classList.toggle('hidden', type !== 'walk');
+      }
+
+      function submitManualLog(event) {
+        event.preventDefault();
+        const dogId = document.getElementById('manual-log-dog').value;
+        const type = document.getElementById('manual-log-type').value;
+        const note = document.getElementById('manual-log-note').value.trim();
+        const dog = state.dogs.find(d => d.id === dogId);
+        if (!dog) return;
+
+        const nowIso = new Date().toISOString();
+
+        if (type === 'weight') {
+          const wt = Number(document.getElementById('manual-log-weight').value);
+          if (!wt || wt <= 0) return;
+          dog.weight = wt;
+          dog.weightHistory = [...(dog.weightHistory || []), wt].slice(-12);
+          saveDogs();
+          state.activities.unshift({
+            id: `act_man_${Date.now()}`,
+            dogId,
+            type: 'weight',
+            title: 'Vikt loggad',
+            weightKg: wt,
+            note: note || 'Manuell vägning',
+            timestamp: nowIso,
+          });
+        } else if (type === 'walk') {
+          const km = Number(document.getElementById('manual-log-km').value) || 1;
+          const min = Number(document.getElementById('manual-log-min').value) || 15;
+          state.activities.unshift({
+            id: `act_man_${Date.now()}`,
+            dogId,
+            type: 'walk',
+            title: 'Promenad',
+            distanceKm: km,
+            durationMin: min,
+            note: note || 'Manuellt tillagd',
+            timestamp: nowIso,
+          });
+        } else {
+          const titles = { nr1: 'Nr 1', nr2: 'Nr 2', training: 'Träning' };
+          const defaultNotes = { nr1: 'Loggat manuellt', nr2: 'Allt såg bra ut', training: 'Träningspass' };
+          state.activities.unshift({
+            id: `act_man_${Date.now()}`,
+            dogId,
+            type,
+            title: titles[type],
+            note: note || defaultNotes[type],
+            timestamp: nowIso,
+          });
+        }
+
+        saveActivities();
+        closeModal();
+        renderHistory();
+        showToast('Händelse sparad', 'lime');
+      }
+
+      // =========================================================================
+      // 12. PUBLIC APP ACTIONS & BOOTSTRAP
+      // =========================================================================
+      window.app = {
+        navigate,
+        finishWelcomeToHub() {
+          setOnboarded(true);
+          navigate('hub');
+        },
+        openWelcomeTarget(view) {
+          setOnboarded(true);
+          navigate(view);
+        },
+        handleStartWalkClick() {
+          if (state.dogs.length > 1) {
+            state.selectedWalkDogIds = state.dogs.map(d => d.id);
+            navigate('select-dogs');
+          } else if (state.dogs.length === 1) {
+            beginWalkSession([state.dogs[0].id]);
+          } else {
+            openAddDog(false, 'hub');
+          }
+        },
+        toggleWalkDogSelection(dogId) {
+          if (state.selectedWalkDogIds.includes(dogId)) {
+            state.selectedWalkDogIds = state.selectedWalkDogIds.filter(id => id !== dogId);
+          } else {
+            state.selectedWalkDogIds.push(dogId);
+          }
+          renderSelectDogs();
+          refreshIcons();
+        },
+        startWalkWithSelectedDogs() {
+          if (state.selectedWalkDogIds.length === 0) return;
+          beginWalkSession(state.selectedWalkDogIds);
+        },
+        toggleSimulatedWalk,
+        recenterWalkMap,
+        logWalkEvent,
+        finishActiveWalk,
+        confirmLeaveWalk,
+        discardWalk,
+        triggerEmergencyFlow,
+        enterEmergencyMode,
+        exitEmergencyMode,
+        shareEmergencyLocation,
+        callTeamOrOwner,
+        openAddDog,
+        handleDogPhotoUpload,
+        submitAddDog,
+        skipAddDog,
+        openAddAdmin,
+        submitInviteAdmin,
+        removeAdmin,
+        skipInviteAdmin,
+        goBackFromForm,
+        openDogSwitcherModal,
+        selectActiveDog,
+        openNotificationsModal,
+        openEditProfileModal,
+        saveProfileEdits,
+        openManualLogModal,
+        toggleManualLogFields,
+        submitManualLog,
+        exportVetReport,
+        closeModal,
+        setHistoryDogFilter(id) {
+          state.historyDogFilter = id;
+          renderHistory();
+          refreshIcons();
+        },
+        setHistoryTypeFilter(type) {
+          state.historyTypeFilter = type;
+          renderHistory();
+          refreshIcons();
+        },
+        deleteActivity(id) {
+          state.activities = state.activities.filter(a => a.id !== id);
+          saveActivities();
+          renderHistory();
+          refreshIcons();
+          showToast('Logg borttagen', 'amber');
+        },
+      };
+
+      // Boot App
+      document.addEventListener('DOMContentLoaded', () => {
+        initStorage();
+        navigate(state.onboarded ? 'hub' : 'welcome');
+      });
+    })();
+  </script>
+</body>
+</html>

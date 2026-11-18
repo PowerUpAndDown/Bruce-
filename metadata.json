@@ -1,0 +1,8 @@
+{
+  "name": "Bruce — The Dog Hub",
+  "description": "Din hundvardag, samlad. Promenader med live GPS-spårning, hälsohistorik, snabb loggning och akutläge.",
+  "requestFramePermissions": [
+    "geolocation"
+  ],
+  "majorCapabilities": []
+}
